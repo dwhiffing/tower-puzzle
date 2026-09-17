@@ -16,6 +16,9 @@ export const NULL_ITEM_ID = 7
 export const CURRENCY_TILES: Record<number, number> = { 24: 1, 25: 5, 26: 10 }
 export const DOOR_IDS = [4]
 export const KEY_IDS = [16]
+export const SWORD_IDS = [8]
+export const SHIELD_IDS = [9]
+export const SWORD_DAMAGE_MULTIPLIER = 2
 export const CURRENCY_IDS = Object.keys(CURRENCY_TILES).map(Number)
 export const STAIR_IDS = [STAIRS_UP_ID, STAIRS_DOWN_ID]
 

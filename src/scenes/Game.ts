@@ -14,7 +14,6 @@ export class GameScene extends Phaser.Scene {
   isAttacking = false
   playerFlashTimer?: Phaser.Time.TimerEvent
   cursors: Phaser.Types.Input.Keyboard.CursorKeys
-  zKey: Phaser.Input.Keyboard.Key
   xKey: Phaser.Input.Keyboard.Key
 
   constructor() {
@@ -37,9 +36,6 @@ export class GameScene extends Phaser.Scene {
     this.hud = new Hud(this)
     this.createPlayer()
     this.cursors = this.input.keyboard!.createCursorKeys()
-    this.zKey = this.input.keyboard!.addKey('Z')
-    this.zKey.removeAllListeners('down')
-    this.zKey.on('down', () => this.useItem())
     this.moveTimer = 0
   }
 
@@ -115,7 +111,16 @@ export class GameScene extends Phaser.Scene {
       this.attack(x, y)
       return
     } else if (C.POTION_IDS.includes(index)) {
-      this.state.set('heldItem', C.POTION_IDS[0])
+      const { abilityValues, abilityValueIndex } = this.state
+      this.state.set(
+        'hp',
+        this.state.hp + (abilityValues[abilityValueIndex] ?? 0),
+      )
+      this.state.nextAbilityValue()
+    } else if (C.SWORD_IDS.includes(index)) {
+      this.state.set('heldItem', C.SWORD_IDS[0])
+    } else if (C.SHIELD_IDS.includes(index)) {
+      this.state.set('heldItem', C.SHIELD_IDS[0])
     } else if (C.CURRENCY_IDS.includes(index)) {
       // this.state.inc('currency', C.CURRENCY_TILES[index] ?? 0)
     }
@@ -124,24 +129,19 @@ export class GameScene extends Phaser.Scene {
     this.map.removeTile(x, y)
   }
 
-  useItem() {
-    if (this.scene.isActive('Transition') || this.isAttacking) return
-    if (!C.POTION_IDS.includes(this.state.heldItem)) return
-
-    const { abilityValues, abilityValueIndex } = this.state
-    const hp = this.state.hp + (abilityValues[abilityValueIndex] ?? 0)
-    this.state.set('hp', hp)
-    this.state.set('heldItem', C.NULL_ITEM_ID)
-    this.state.nextAbilityValue()
-  }
-
   attack(x: number, y: number) {
     const monster = this.map.getMonster(x, y)
     if (!monster) return
 
-    const { abilityValues, abilityValueIndex } = this.state
-    const died = monster.takeDamage(abilityValues[abilityValueIndex] ?? 0)
+    const { abilityValues, abilityValueIndex, heldItem } = this.state
+    const hasSword = C.SWORD_IDS.includes(heldItem)
+    const hasShield = C.SHIELD_IDS.includes(heldItem)
+    const damage =
+      (abilityValues[abilityValueIndex] ?? 0) *
+      (hasSword ? C.SWORD_DAMAGE_MULTIPLIER : 1)
+    const died = monster.takeDamage(damage)
 
+    if (hasSword) this.state.set('heldItem', C.NULL_ITEM_ID)
     this.state.nextAbilityValue()
 
     this.isAttacking = true
@@ -149,6 +149,12 @@ export class GameScene extends Phaser.Scene {
       if (died) {
         this.isAttacking = false
         this.map.removeTile(x, y)
+        return
+      }
+
+      if (hasShield) {
+        this.state.set('heldItem', C.NULL_ITEM_ID)
+        this.isAttacking = false
         return
       }
 

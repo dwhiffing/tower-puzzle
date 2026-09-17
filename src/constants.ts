@@ -13,7 +13,8 @@ export const ENEMY_IDLE_FRAMERATE = 2
 export const STAIRS_DOWN_ID = 2
 export const STAIRS_UP_ID = 3
 export const NULL_ITEM_ID = 7
-export const CURRENCY_TILES: Record<number, number> = { 24: 1, 25: 5, 26: 10 }
+export const GEM_IDS = [24]
+export const CURRENCY_TILES: Record<number, number> = { 25: 5, 26: 10 }
 export const DOOR_IDS = [4]
 export const KEY_IDS = [16]
 export const SWORD_IDS = [8]
@@ -21,6 +22,12 @@ export const SHIELD_IDS = [9]
 export const SWORD_DAMAGE_MULTIPLIER = 2
 export const CURRENCY_IDS = Object.keys(CURRENCY_TILES).map(Number)
 export const STAIR_IDS = [STAIRS_UP_ID, STAIRS_DOWN_ID]
+export const HELD_ITEM_IDS = [
+  ...KEY_IDS,
+  ...SWORD_IDS,
+  ...SHIELD_IDS,
+  ...GEM_IDS,
+]
 
 export const PIXEL_FONT_BODY = 0xc4181f
 export const PIXEL_FONT_OUTLINE = 0x120a19

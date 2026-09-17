@@ -91,6 +91,7 @@ export class GameScene extends Phaser.Scene {
     if (C.WALL_IDS.includes(index)) return
 
     if (C.STAIR_IDS.includes(index)) {
+      if (!C.GEM_IDS.includes(this.state.heldItem)) return
       this.player.setPosition(x * C.TILE_SIZE, y * C.TILE_SIZE)
       this.nextLevel(index)
       return
@@ -105,8 +106,8 @@ export class GameScene extends Phaser.Scene {
 
       this.state.set('heldItem', C.NULL_ITEM_ID)
       this.state.nextAbilityValue()
-    } else if (C.KEY_IDS.includes(index)) {
-      this.state.set('heldItem', C.KEY_IDS[0])
+    } else if (C.HELD_ITEM_IDS.includes(index)) {
+      this.swapHeldItem(index)
     } else if (C.ENEMY_IDS.includes(index)) {
       this.attack(x, y)
       return
@@ -117,16 +118,24 @@ export class GameScene extends Phaser.Scene {
         this.state.hp + (abilityValues[abilityValueIndex] ?? 0),
       )
       this.state.nextAbilityValue()
-    } else if (C.SWORD_IDS.includes(index)) {
-      this.state.set('heldItem', C.SWORD_IDS[0])
-    } else if (C.SHIELD_IDS.includes(index)) {
-      this.state.set('heldItem', C.SHIELD_IDS[0])
     } else if (C.CURRENCY_IDS.includes(index)) {
       // this.state.inc('currency', C.CURRENCY_TILES[index] ?? 0)
     }
 
     this.player.setPosition(x * C.TILE_SIZE, y * C.TILE_SIZE)
     this.map.removeTile(x, y)
+  }
+
+  swapHeldItem(index: number) {
+    const dropped = this.state.heldItem
+    this.state.set('heldItem', index)
+    if (dropped === C.NULL_ITEM_ID) return
+
+    const from = {
+      x: this.player.x / C.TILE_SIZE,
+      y: this.player.y / C.TILE_SIZE,
+    }
+    this.map.setTile(this.map.layers[1], dropped + 1, from.x, from.y)
   }
 
   attack(x: number, y: number) {
@@ -182,6 +191,7 @@ export class GameScene extends Phaser.Scene {
     const newLevel = this.state.level + (isUp ? 1 : -1)
     if (newLevel > C.LEVEL_COUNT) return
 
+    this.state.set('heldItem', C.NULL_ITEM_ID)
     this.state.set('lastLevel', this.state.level)
     this.state.set('level', newLevel)
     this.scene.launch('Transition', {

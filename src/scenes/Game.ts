@@ -1,15 +1,18 @@
 import * as C from '../constants'
+import { flashSprite } from '../flash'
 import { GameState } from './GameState'
 import { Hud } from './Hud'
-import { Map } from './Map'
+import { GameMap } from './Map'
 
 export class GameScene extends Phaser.Scene {
-  map: Map
+  map: GameMap
   hud: Hud
   state: GameState
   player: Phaser.GameObjects.Sprite
   moveTimer = 0
   isMoveHeld = false
+  isAttacking = false
+  playerFlashTimer?: Phaser.Time.TimerEvent
   cursors: Phaser.Types.Input.Keyboard.CursorKeys
   zKey: Phaser.Input.Keyboard.Key
   xKey: Phaser.Input.Keyboard.Key
@@ -20,18 +23,28 @@ export class GameScene extends Phaser.Scene {
 
   create() {
     const lastLevel = this.registry.get('lastLevel') ?? null
-    this.state = new GameState(this, !lastLevel)
-    this.map = new Map(this)
+    const isNewRun = !lastLevel
+    this.state = new GameState(this, isNewRun)
+    this.map = new GameMap(this)
+    if (isNewRun) {
+      const values = this.map.spawn?.abilityValues
+      this.state.set(
+        'abilityValues',
+        values?.length ? values : C.STARTING_ABILITY_VALUES,
+      )
+      this.state.set('abilityValueIndex', 0)
+    }
     this.hud = new Hud(this)
     this.createPlayer()
     this.cursors = this.input.keyboard!.createCursorKeys()
+    this.zKey = this.input.keyboard!.addKey('Z')
+    this.zKey.removeAllListeners('down')
+    this.zKey.on('down', () => this.useItem())
     this.moveTimer = 0
-    this.state.set('abilityValues', [1, 4, 3])
-    this.state.set('abilityValueIndex', 0)
   }
 
   update(_time: number, delta: number) {
-    if (this.scene.isActive('Transition')) return
+    if (this.scene.isActive('Transition') || this.isAttacking) return
 
     const { left, right, up, down } = this.cursors
     const dx = (right.isDown ? 1 : 0) - (left.isDown ? 1 : 0)
@@ -57,14 +70,17 @@ export class GameScene extends Phaser.Scene {
         ? C.STAIRS_DOWN_ID
         : C.STAIRS_UP_ID
       : undefined
-    const tile = this.map.findTile(arriveAt ?? C.PLAYER_ID + 1)!
+    const start = arriveAt
+      ? this.map.findTile(arriveAt)
+      : (this.map.spawn ?? this.map.findTile(C.PLAYER_ID + 1))
     const spawnTile = this.map.findTile(C.PLAYER_ID + 1)
     if (spawnTile) this.map.removeTile(spawnTile.x, spawnTile.y)
 
     this.player = this.add
       .sprite(0, 0, 'tilemap', C.PLAYER_ID)
       .setOrigin(0)
-      .setPosition(tile.x * C.TILE_SIZE, tile.y * C.TILE_SIZE)
+      .setDepth(10)
+      .setPosition((start?.x ?? 0) * C.TILE_SIZE, (start?.y ?? 0) * C.TILE_SIZE)
   }
 
   move(dx: number, dy: number) {
@@ -85,13 +101,19 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (C.DOOR_IDS.includes(index)) {
-      // const keyCount = this.state.get(`keys.${C.DOOR_TYPES[index]}`) ?? 0
-      // if (keyCount < 1) return
-      // this.state.inc(`keys.${C.DOOR_TYPES[index]}`, -1)
+      if (!C.KEY_IDS.includes(this.state.heldItem)) return
+
+      const { abilityValues, abilityValueIndex } = this.state
+      const door = this.map.getDoor(x, y)
+      if (door && !door.accepts(abilityValues[abilityValueIndex] ?? 0)) return
+
+      this.state.set('heldItem', C.NULL_ITEM_ID)
+      this.state.nextAbilityValue()
     } else if (C.KEY_IDS.includes(index)) {
       this.state.set('heldItem', C.KEY_IDS[0])
     } else if (C.ENEMY_IDS.includes(index)) {
-      // this.state.inc('enemies', 1)
+      this.attack(x, y)
+      return
     } else if (C.POTION_IDS.includes(index)) {
       this.state.set('heldItem', C.POTION_IDS[0])
     } else if (C.CURRENCY_IDS.includes(index)) {
@@ -100,6 +122,53 @@ export class GameScene extends Phaser.Scene {
 
     this.player.setPosition(x * C.TILE_SIZE, y * C.TILE_SIZE)
     this.map.removeTile(x, y)
+  }
+
+  useItem() {
+    if (this.scene.isActive('Transition') || this.isAttacking) return
+    if (!C.POTION_IDS.includes(this.state.heldItem)) return
+
+    const { abilityValues, abilityValueIndex } = this.state
+    const hp = this.state.hp + (abilityValues[abilityValueIndex] ?? 0)
+    this.state.set('hp', hp)
+    this.state.set('heldItem', C.NULL_ITEM_ID)
+    this.state.nextAbilityValue()
+  }
+
+  attack(x: number, y: number) {
+    const monster = this.map.getMonster(x, y)
+    if (!monster) return
+
+    const { abilityValues, abilityValueIndex } = this.state
+    const died = monster.takeDamage(abilityValues[abilityValueIndex] ?? 0)
+
+    this.state.nextAbilityValue()
+
+    this.isAttacking = true
+    monster.flash(() => {
+      if (died) {
+        this.isAttacking = false
+        this.map.removeTile(x, y)
+        return
+      }
+
+      const hp = Math.max(0, this.state.hp - monster.damage)
+      this.state.set('hp', hp)
+      this.playerFlashTimer = flashSprite(
+        this.player,
+        this.playerFlashTimer,
+        () => {
+          this.isAttacking = false
+          if (hp <= 0) this.gameOver()
+        },
+      )
+    })
+  }
+
+  gameOver() {
+    this.player.setVisible(false)
+    this.registry.events.removeAllListeners()
+    this.scene.launch('Transition', { from: 'Game', to: 'Menu' })
   }
 
   nextLevel = (index: number) => {

@@ -32,7 +32,7 @@ export class GameState {
   }
 
   get hp(): number {
-    return this.registry.get('hp') ?? 1
+    return this.registry.get('hp') ?? 10
   }
 
   get heldItem(): number {
@@ -55,6 +55,15 @@ export class GameState {
     return this.registry.set(key, value)
   }
 
+  nextAbilityValue() {
+    const { abilityValues, abilityValueIndex } = this
+    if (abilityValues.length === 0) return
+    this.set(
+      'abilityValueIndex',
+      (abilityValueIndex + 1) % abilityValues.length,
+    )
+  }
+
   inc(key: string, value: number) {
     return this.registry.inc(key, value)
   }
@@ -62,10 +71,12 @@ export class GameState {
   reset() {
     this.registry.set({
       heldItem: NULL_ITEM_ID,
-      hp: 1,
+      hp: 10,
       tileEdits: {},
       abilityValues: [],
       abilityValueIndex: 0,
+      level: 1,
+      lastLevel: null,
     })
   }
 }

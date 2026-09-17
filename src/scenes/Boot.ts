@@ -1,5 +1,6 @@
 import { Scene } from 'phaser'
-import { LEVEL_COUNT, TILE_SIZE } from '../constants'
+import * as C from '../constants'
+import { recolorBitmapFont } from '../recolor'
 
 export class BootScene extends Scene {
   constructor() {
@@ -14,16 +15,24 @@ export class BootScene extends Scene {
       'assets/pixel-dan.xml',
     )
     this.load.spritesheet('tilemap', 'assets/tilemap.png', {
-      frameWidth: TILE_SIZE,
-      frameHeight: TILE_SIZE,
+      frameWidth: C.TILE_SIZE,
+      frameHeight: C.TILE_SIZE,
     })
-    for (let i = 1; i <= LEVEL_COUNT; i++) {
+    for (let i = 1; i <= C.LEVEL_COUNT; i++) {
       this.load.tilemapTiledJSON(`level${i}`, `assets/level${i}.tmj`)
     }
     // this.load.audio('music', 'assets/music.mp3')
   }
 
   create() {
+    recolorBitmapFont(this, 'pixel', 'pixel-brown', {
+      [C.PIXEL_FONT_BODY]: C.COLOURS[2],
+      [C.PIXEL_FONT_OUTLINE]: C.COLOURS[0],
+    })
+    recolorBitmapFont(this, 'pixel', 'pixel-door', {
+      [C.PIXEL_FONT_OUTLINE]: null,
+      [C.PIXEL_FONT_BODY]: C.COLOURS[0],
+    })
     this.scene.start('Game')
     // this.scene.launch('Transition', { from: 'Boot', to: 'Menu' })
   }

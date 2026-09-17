@@ -13,17 +13,14 @@ const config: Types.Core.GameConfig = {
   parent: 'game-container',
   backgroundColor: COLOURS[0],
   pixelArt: true,
-  zoom: 4,
+  zoom: 6,
   scene: [BootScene, MenuScene, GameScene, TransitionScene],
 }
 
 const game = new Game(config)
 document.addEventListener('keydown', (event) => {
   if (event.key.toLowerCase() === 'm') {
-    const currentScene = game.scene.getScenes(true)[0]
-    if (currentScene) {
-      AudioToggle.toggle(currentScene)
-    }
+    AudioToggle.toggle(game.scene.getScenes(true)[0])
   }
 })
 

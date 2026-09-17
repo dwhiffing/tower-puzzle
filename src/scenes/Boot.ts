@@ -8,6 +8,11 @@ export class BootScene extends Scene {
 
   preload() {
     this.load.bitmapFont('wayfarer', 'assets/font.png', 'assets/font.xml')
+    this.load.bitmapFont(
+      'pixel',
+      'assets/pixel-dan.png',
+      'assets/pixel-dan.xml',
+    )
     this.load.spritesheet('tilemap', 'assets/tilemap.png', {
       frameWidth: TILE_SIZE,
       frameHeight: TILE_SIZE,
@@ -19,7 +24,7 @@ export class BootScene extends Scene {
   }
 
   create() {
-    // this.scene.start('Game')
-    this.scene.launch('Transition', { from: 'Boot', to: 'Menu' })
+    this.scene.start('Game')
+    // this.scene.launch('Transition', { from: 'Boot', to: 'Menu' })
   }
 }

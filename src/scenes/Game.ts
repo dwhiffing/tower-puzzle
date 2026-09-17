@@ -1,9 +1,11 @@
 import * as C from '../constants'
 import { GameState } from './GameState'
+import { Hud } from './Hud'
 import { Map } from './Map'
 
 export class GameScene extends Phaser.Scene {
   map: Map
+  hud: Hud
   state: GameState
   player: Phaser.GameObjects.Sprite
   moveTimer = 0
@@ -20,9 +22,12 @@ export class GameScene extends Phaser.Scene {
     const lastLevel = this.registry.get('lastLevel') ?? null
     this.state = new GameState(this, !lastLevel)
     this.map = new Map(this)
+    this.hud = new Hud(this)
     this.createPlayer()
     this.cursors = this.input.keyboard!.createCursorKeys()
     this.moveTimer = 0
+    this.state.set('abilityValues', [1, 4, 3])
+    this.state.set('abilityValueIndex', 0)
   }
 
   update(_time: number, delta: number) {
@@ -69,7 +74,7 @@ export class GameScene extends Phaser.Scene {
 
     if (x < 0 || y < 0 || x >= width || y >= height) return
 
-    const index = this.map.getTile(x, y)?.index ?? -1
+    const index = (this.map.getTile(x, y)?.index ?? 0) - 1
 
     if (C.WALL_IDS.includes(index)) return
 
@@ -80,18 +85,17 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (C.DOOR_IDS.includes(index)) {
-      const keyCount = this.state.get(`keys.${C.DOOR_TYPES[index]}`) ?? 0
-      if (keyCount < 1) return
-
-      this.state.inc(`keys.${C.DOOR_TYPES[index]}`, -1)
+      // const keyCount = this.state.get(`keys.${C.DOOR_TYPES[index]}`) ?? 0
+      // if (keyCount < 1) return
+      // this.state.inc(`keys.${C.DOOR_TYPES[index]}`, -1)
     } else if (C.KEY_IDS.includes(index)) {
-      this.state.inc(`keys.${index}`, 1)
+      this.state.set('heldItem', C.KEY_IDS[0])
     } else if (C.ENEMY_IDS.includes(index)) {
-      this.state.inc('enemies', 1)
+      // this.state.inc('enemies', 1)
     } else if (C.POTION_IDS.includes(index)) {
-      this.state.inc('potions', 1)
+      this.state.set('heldItem', C.POTION_IDS[0])
     } else if (C.CURRENCY_IDS.includes(index)) {
-      this.state.inc('currency', C.CURRENCY_TILES[index] ?? 0)
+      // this.state.inc('currency', C.CURRENCY_TILES[index] ?? 0)
     }
 
     this.player.setPosition(x * C.TILE_SIZE, y * C.TILE_SIZE)

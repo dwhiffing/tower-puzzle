@@ -1,4 +1,4 @@
-import { LOCK_TYPES } from '../constants'
+import { NULL_ITEM_ID } from '../constants'
 import { GameScene } from './Game'
 
 interface TileEdit {
@@ -23,20 +23,24 @@ export class GameState {
     return this.registry.get('lastLevel')
   }
 
+  get abilityValues(): number[] {
+    return this.registry.get('abilityValues') ?? []
+  }
+
+  get abilityValueIndex(): number {
+    return this.registry.get('abilityValueIndex') ?? []
+  }
+
+  get hp(): number {
+    return this.registry.get('hp') ?? 1
+  }
+
+  get heldItem(): number {
+    return this.registry.get('heldItem') ?? NULL_ITEM_ID
+  }
+
   get level(): number {
     return this.registry.get('level') ?? 1
-  }
-
-  get potions(): number {
-    return this.registry.get('potions') ?? 0
-  }
-
-  get enemies(): number {
-    return this.registry.get('enemies') ?? 0
-  }
-
-  get currency(): number {
-    return this.registry.get('currency') ?? 0
   }
 
   get tileEdits(): Record<number, TileEdit[]> {
@@ -47,7 +51,7 @@ export class GameState {
     return this.registry.get(key)
   }
 
-  set(key: string, value: number) {
+  set(key: string, value: number | number[]) {
     return this.registry.set(key, value)
   }
 
@@ -56,9 +60,12 @@ export class GameState {
   }
 
   reset() {
-    this.registry.set({ currency: 0, enemies: 0, potions: 0, tileEdits: {} })
-    for (const type of Object.keys(LOCK_TYPES)) {
-      this.registry.set(`keys.${type}`, 0)
-    }
+    this.registry.set({
+      heldItem: NULL_ITEM_ID,
+      hp: 1,
+      tileEdits: {},
+      abilityValues: [],
+      abilityValueIndex: 0,
+    })
   }
 }

@@ -24,4 +24,6 @@ document.addEventListener('keydown', (event) => {
   }
 })
 
+;(window as any).__game = game
+
 export default game

@@ -19,7 +19,7 @@ export class BootScene extends Scene {
       frameHeight: C.TILE_SIZE,
     })
     for (let i = 1; i <= C.LEVEL_COUNT; i++) {
-      this.load.tilemapTiledJSON(`level${i}`, `assets/level${i}.tmj`)
+      this.load.tilemapTiledJSON(`level${i}`, `assets/level${i}.json`)
     }
     // this.load.audio('music', 'assets/music.mp3')
   }

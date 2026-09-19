@@ -71,6 +71,21 @@ export class Monster {
       .setDepth(31)
   }
 
+  moveTo(x: number, y: number) {
+    this.x = x
+    this.y = y
+    this.sprite.setPosition(x * C.TILE_SIZE, y * C.TILE_SIZE)
+    this.healthText.destroy()
+    this.damageText.destroy()
+    this.createText()
+  }
+
+  setStats(health: number, damage: number) {
+    this.health = health
+    this.damage = damage
+    this.refresh()
+  }
+
   takeDamage(amount: number) {
     this.health = Math.max(0, this.health - amount)
     this.refresh()

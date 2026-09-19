@@ -1,6 +1,7 @@
 import * as C from '../constants'
 import { flashSprite } from '../flash'
-import { GameState } from './GameState'
+import { State, step } from '../rules'
+import { GameState, Snapshot } from './GameState'
 import { Hud } from './Hud'
 import { GameMap } from './Map'
 
@@ -12,9 +13,15 @@ export class GameScene extends Phaser.Scene {
   moveTimer = 0
   isMoveHeld = false
   isAttacking = false
+  isDead = false
   playerFlashTimer?: Phaser.Time.TimerEvent
   cursors: Phaser.Types.Input.Keyboard.CursorKeys
+  zKey: Phaser.Input.Keyboard.Key
   xKey: Phaser.Input.Keyboard.Key
+  undoStack: Snapshot[] = []
+  redoStack: Snapshot[] = []
+  historyTimer = 0
+  isHistoryHeld = false
 
   constructor() {
     super('Game')
@@ -36,11 +43,18 @@ export class GameScene extends Phaser.Scene {
     this.hud = new Hud(this)
     this.createPlayer()
     this.cursors = this.input.keyboard!.createCursorKeys()
+    this.zKey = this.input.keyboard!.addKey('Z')
+    this.xKey = this.input.keyboard!.addKey('X')
     this.moveTimer = 0
+    this.undoStack = []
+    this.redoStack = []
   }
 
   update(_time: number, delta: number) {
     if (this.scene.isActive('Transition') || this.isAttacking) return
+
+    if (this.updateHistory(delta)) return
+    if (this.isDead) return
 
     const { left, right, up, down } = this.cursors
     const dx = (right.isDown ? 1 : 0) - (left.isDown ? 1 : 0)
@@ -79,111 +93,164 @@ export class GameScene extends Phaser.Scene {
       .setPosition((start?.x ?? 0) * C.TILE_SIZE, (start?.y ?? 0) * C.TILE_SIZE)
   }
 
+  updateHistory(delta: number) {
+    const undo = this.zKey.isDown
+    const redo = this.xKey.isDown
+
+    if (undo === redo) {
+      this.isHistoryHeld = false
+      this.historyTimer = 0
+      return false
+    }
+
+    this.historyTimer -= delta
+    if (this.isHistoryHeld && this.historyTimer > 0) return true
+
+    this.historyTimer = this.isHistoryHeld ? 100 : 200
+    this.isHistoryHeld = true
+
+    if (undo) this.undo()
+    else this.redo()
+    return true
+  }
+
+  pushHistory() {
+    this.undoStack.push(this.state.snapshot())
+    this.redoStack = []
+  }
+
+  undo() {
+    const snapshot = this.undoStack.pop()
+    if (!snapshot) return
+    this.redoStack.push(this.state.snapshot())
+    this.state.restore(snapshot)
+    this.revive()
+  }
+
+  revive() {
+    this.isDead = false
+    this.isAttacking = false
+    this.player.setVisible(true)
+  }
+
+  redo() {
+    const snapshot = this.redoStack.pop()
+    if (!snapshot) return
+    this.undoStack.push(this.state.snapshot())
+    this.state.restore(snapshot)
+    this.revive()
+  }
+
   move(dx: number, dy: number) {
-    const { width, height } = this.map.tilemap
-    const x = this.player.x / C.TILE_SIZE + dx
-    const y = this.player.y / C.TILE_SIZE + dy
+    const result = step(this.toRulesState(), { dx, dy })
+    if (!result) return
 
-    if (x < 0 || y < 0 || x >= width || y >= height) return
-
-    const index = (this.map.getTile(x, y)?.index ?? 0) - 1
-
-    if (C.WALL_IDS.includes(index)) return
-
-    if (C.STAIR_IDS.includes(index)) {
-      if (!C.GEM_IDS.includes(this.state.heldItem)) return
-      this.player.setPosition(x * C.TILE_SIZE, y * C.TILE_SIZE)
-      this.nextLevel(index)
-      return
-    }
-
-    if (C.DOOR_IDS.includes(index)) {
-      if (!C.KEY_IDS.includes(this.state.heldItem)) return
-
-      const { abilityValues, abilityValueIndex } = this.state
-      const door = this.map.getDoor(x, y)
-      if (door && !door.accepts(abilityValues[abilityValueIndex] ?? 0)) return
-
-      this.state.set('heldItem', C.NULL_ITEM_ID)
-      this.state.nextAbilityValue()
-    } else if (C.HELD_ITEM_IDS.includes(index)) {
-      this.swapHeldItem(index)
-    } else if (C.ENEMY_IDS.includes(index)) {
-      this.attack(x, y)
-      return
-    } else if (C.POTION_IDS.includes(index)) {
-      const { abilityValues, abilityValueIndex } = this.state
-      this.state.set(
-        'hp',
-        this.state.hp + (abilityValues[abilityValueIndex] ?? 0),
-      )
-      this.state.nextAbilityValue()
-    } else if (C.CURRENCY_IDS.includes(index)) {
-      // this.state.inc('currency', C.CURRENCY_TILES[index] ?? 0)
-    }
-
-    this.player.setPosition(x * C.TILE_SIZE, y * C.TILE_SIZE)
-    this.map.removeTile(x, y)
+    this.pushHistory()
+    this.applyEffects(result)
   }
 
-  swapHeldItem(index: number) {
-    const dropped = this.state.heldItem
-    this.state.set('heldItem', index)
-    if (dropped === C.NULL_ITEM_ID) return
+  /** Mirrors the rules' new state onto the scene, animating as it goes. */
+  applyEffects(result: ReturnType<typeof step> & {}) {
+    const { state, effects } = result
+    const attack = effects.find((e) => e.type === 'attack')
 
-    const from = {
-      x: this.player.x / C.TILE_SIZE,
-      y: this.player.y / C.TILE_SIZE,
+    this.state.set('hp', state.hp)
+    this.state.set('heldItem', state.heldItem)
+    this.state.set('abilityValues', state.abilityValues)
+    this.state.set('abilityValueIndex', state.abilityValueIndex)
+
+    for (const effect of effects) {
+      if (effect.type === 'move' || effect.type === 'swap') {
+        this.player.setPosition(effect.x * C.TILE_SIZE, effect.y * C.TILE_SIZE)
+      } else if (effect.type === 'dig') {
+        this.map.removeTile(effect.x, effect.y)
+      } else if (effect.type === 'door') {
+        this.map.removeDoor(effect.x, effect.y)
+      } else if (effect.type === 'exit') {
+        this.nextLevel(effect.stairs)
+      }
     }
-    this.map.setTile(this.map.layers[1], dropped + 1, from.x, from.y)
-  }
 
-  attack(x: number, y: number) {
-    const monster = this.map.getMonster(x, y)
+    this.syncTiles(state)
+    this.syncMonsters(state)
+
+    if (!attack) return
+
+    // Combat is the one case with timing: flash the monster, then resolve.
+    const monster = this.map.getMonster(attack.x, attack.y)
+    const hurt = effects.find((e) => e.type === 'hurt')
+    const died = effects.some((e) => e.type === 'died')
     if (!monster) return
 
-    const { abilityValues, abilityValueIndex, heldItem } = this.state
-    const hasSword = C.SWORD_IDS.includes(heldItem)
-    const hasShield = C.SHIELD_IDS.includes(heldItem)
-    const damage =
-      (abilityValues[abilityValueIndex] ?? 0) *
-      (hasSword ? C.SWORD_DAMAGE_MULTIPLIER : 1)
-    const died = monster.takeDamage(damage)
-
-    if (hasSword) this.state.set('heldItem', C.NULL_ITEM_ID)
-    this.state.nextAbilityValue()
+    monster.setStats(
+      state.monsters.find((m) => m.x === attack.x && m.y === attack.y)
+        ?.health ?? 0,
+      monster.damage,
+    )
 
     this.isAttacking = true
     monster.flash(() => {
-      if (died) {
+      if (attack.killed) {
         this.isAttacking = false
-        this.map.removeTile(x, y)
+        this.map.removeMonster(attack.x, attack.y)
+        this.map.removeTile(attack.x, attack.y)
         return
       }
-
-      if (hasShield) {
-        this.state.set('heldItem', C.NULL_ITEM_ID)
+      if (!hurt) {
         this.isAttacking = false
         return
       }
-
-      const hp = Math.max(0, this.state.hp - monster.damage)
-      this.state.set('hp', hp)
       this.playerFlashTimer = flashSprite(
         this.player,
         this.playerFlashTimer,
         () => {
           this.isAttacking = false
-          if (hp <= 0) this.gameOver()
+          if (died) this.gameOver()
         },
       )
     })
   }
 
+  /** Repositions monster objects to match the rules state. */
+  syncMonsters(state: State) {
+    const byTile = new Map(
+      [...this.map.monsters.values()].map((m) => [m, `${m.x},${m.y}`]),
+    )
+    for (const want of state.monsters) {
+      const key = `${want.x},${want.y}`
+      if ([...byTile.values()].includes(key)) continue
+      // A monster the rules moved: find the one that is no longer where it was.
+      const stale = [...this.map.monsters.values()].find(
+        (m) =>
+          !state.monsters.some((w) => w.x === m.x && w.y === m.y) &&
+          m.tileIndex === want.tileIndex,
+      )
+      if (!stale) continue
+      this.map.monsters.delete(`${stale.x},${stale.y}`)
+      stale.moveTo(want.x, want.y)
+      this.map.monsters.set(stale.key, stale)
+    }
+  }
+
+  /** Writes the rules' tile grid back onto the tilemap layers. */
+  syncTiles(state: State) {
+    const { width } = this.map.tilemap
+    this.map.layers.forEach((layer, i) => {
+      for (let y = 0; y < state.height; y++) {
+        for (let x = 0; x < width; x++) {
+          const want = state.tiles[i][y * width + x] ?? -1
+          const have = layer.getTileAt(x, y)
+          const current = have && have.index !== -1 ? have.index - 1 : -1
+          if (want === current) continue
+          this.map.setTile(layer, want === -1 ? -1 : want + 1, x, y)
+        }
+      }
+    })
+  }
+
   gameOver() {
+    this.isDead = true
     this.player.setVisible(false)
-    this.registry.events.removeAllListeners()
-    this.scene.launch('Transition', { from: 'Game', to: 'Menu' })
   }
 
   nextLevel = (index: number) => {

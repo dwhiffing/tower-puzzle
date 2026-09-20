@@ -4,6 +4,7 @@ import { COLOURS } from './constants'
 import { BootScene } from './scenes/Boot'
 import { GameScene } from './scenes/Game'
 import { MenuScene } from './scenes/Menu'
+import { setupTouchControls } from './touch'
 import { TransitionScene } from './scenes/Transition'
 
 const config: Types.Core.GameConfig = {
@@ -13,9 +14,18 @@ const config: Types.Core.GameConfig = {
   parent: 'game-container',
   backgroundColor: COLOURS[0],
   pixelArt: true,
-  zoom: 6,
+  scale: {
+    // FIT keeps the 160x144 aspect while filling whatever space the
+    // layout gives it, which on mobile is the area above the controls
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+  },
   scene: [BootScene, MenuScene, GameScene, TransitionScene],
 }
+
+// before the game boots: the touch layout reshapes #game-container, and
+// Phaser measures its parent on creation
+setupTouchControls()
 
 const game = new Game(config)
 document.addEventListener('keydown', (event) => {

@@ -24,6 +24,20 @@ export class GameMap {
       (layer) => this.tilemap.createLayer(layer.name, tileset, 0, 0)!,
     )
 
+    /* Levels store only walls as tiles; stairs, items, keys and enemies are
+       objects. The scene still works on two tile layers, so make the second
+       one here and paint the objects onto it. */
+    if (this.layers.length < 2) {
+      const blank = this.tilemap.createBlankLayer(
+        'objects',
+        tileset,
+        0,
+        0,
+      )!
+      this.layers.push(blank)
+    }
+    this.paintObjects()
+
     this.baseTiles = this.layers.map((layer) => {
       const indices: number[] = []
       layer.forEachTile((tile) => {
@@ -105,6 +119,21 @@ export class GameMap {
       if (tile) return tile
     }
     return null
+  }
+
+  /** Draws every non-door, non-spawn object onto the tile layers. */
+  paintObjects() {
+    for (const layer of this.tilemap.objects) {
+      for (const object of layer.objects) {
+        if (object.gid === undefined) continue
+        const index = object.gid - 1
+        if (index === C.PLAYER_ID) continue
+        if (Door.parse(object.name ?? '')) continue
+        const { x, y } = this.objectTile(object)
+        const terrain = C.STAIR_IDS.includes(index)
+        this.layers[terrain ? 0 : 1].putTileAt(object.gid, x, y)
+      }
+    }
   }
 
   spawnMonsters() {

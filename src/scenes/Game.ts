@@ -5,6 +5,19 @@ import { GameState, Snapshot } from '../GameState'
 import { Hud } from '../Hud'
 import { GameMap } from '../Map'
 
+let selectHeld = false
+if (typeof window !== 'undefined') {
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') selectHeld = true
+  })
+  window.addEventListener('keyup', (e) => {
+    if (e.code === 'Space') selectHeld = false
+  })
+  window.addEventListener('blur', () => (selectHeld = false))
+}
+
+const isSelectHeld = () => selectHeld
+
 export class GameScene extends Phaser.Scene {
   map: GameMap
   hud: Hud
@@ -18,8 +31,8 @@ export class GameScene extends Phaser.Scene {
   skippedDebug = false
   playerFlashTimer?: Phaser.Time.TimerEvent
   cursors: Phaser.Types.Input.Keyboard.CursorKeys
-  zKey: Phaser.Input.Keyboard.Key
-  xKey: Phaser.Input.Keyboard.Key
+  undoKey: Phaser.Input.Keyboard.Key
+  redoKey: Phaser.Input.Keyboard.Key
   undoStack: Snapshot[] = []
   redoStack: Snapshot[] = []
   historyTimer = 0
@@ -48,12 +61,15 @@ export class GameScene extends Phaser.Scene {
     this.createPlayer()
     this.skippedDebug = false
     this.cursors = this.input.keyboard!.createCursorKeys()
-    this.zKey = this.input.keyboard!.addKey('Z')
-    this.xKey = this.input.keyboard!.addKey('X')
-    if (import.meta.env.DEV) {
-      this.input.keyboard!.on('keydown-Q', () => this.skipLevel(-1))
-      this.input.keyboard!.on('keydown-W', () => this.skipLevel(1))
-    }
+    this.undoKey = this.input.keyboard!.addKey('X')
+    this.redoKey = this.input.keyboard!.addKey('C')
+    // hold SELECT and tap left/right to step between levels
+    this.input.keyboard!.on('keydown-LEFT', () => {
+      if (isSelectHeld()) this.skipLevel(-1)
+    })
+    this.input.keyboard!.on('keydown-RIGHT', () => {
+      if (isSelectHeld()) this.skipLevel(1)
+    })
     this.moveTimer = 0
     this.undoStack = []
     this.redoStack = []
@@ -64,6 +80,11 @@ export class GameScene extends Phaser.Scene {
 
     if (this.updateHistory(delta)) return
     if (this.isDead) return
+    if (isSelectHeld()) {
+      this.isMoveHeld = false
+      this.moveTimer = 0
+      return
+    }
 
     const { left, right, up, down } = this.cursors
     const dx = (right.isDown ? 1 : 0) - (left.isDown ? 1 : 0)
@@ -106,8 +127,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   updateHistory(delta: number) {
-    const undo = this.zKey.isDown
-    const redo = this.xKey.isDown
+    const undo = this.undoKey.isDown
+    const redo = this.redoKey.isDown
 
     if (undo === redo) {
       this.isHistoryHeld = false

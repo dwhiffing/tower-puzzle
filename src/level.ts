@@ -58,25 +58,19 @@ export function loadLevel(level: TiledLevel): State {
   const { width, height } = level
   const tileLayers = level.layers.filter((l) => l.type === 'tilelayer')
 
-  const tiles = tileLayers.map((layer) =>
-    (layer.data ?? []).map((gid) => (gid === 0 ? -1 : gid - 1)),
-  )
+  /* Levels carry one tile layer of walls; everything else — stairs, doors,
+     items, keys, enemies, the spawn — is an object. The rules still work on
+     a two-layer grid, so objects are painted back onto it here: terrain on
+     layer 0, pickups and enemies on layer 1. */
+  const blank = () => new Array(width * height).fill(-1)
+  const tiles = [
+    tileLayers[0]
+      ? (tileLayers[0].data ?? []).map((gid) => (gid === 0 ? -1 : gid - 1))
+      : blank(),
+    blank(),
+  ]
 
   const monsters: MonsterState[] = []
-  tiles.forEach((layer) => {
-    layer.forEach((index, i) => {
-      const stats = C.ENEMY_STATS[index]
-      if (!stats) return
-      monsters.push({
-        x: i % width,
-        y: Math.floor(i / width),
-        tileIndex: index,
-        health: stats[0],
-        damage: stats[1],
-      })
-    })
-  })
-
   const doors: DoorState[] = []
   let spawn: Spawn | undefined
 
@@ -85,18 +79,35 @@ export function loadLevel(level: TiledLevel): State {
     for (const object of layer.objects ?? []) {
       if (object.gid === undefined) continue
       const { x, y } = objectTile(object)
+      const index = object.gid - 1
+      const at = y * width + x
 
       const lock = parseDoorName(object.name ?? '')
       if (lock) {
         doors.push({ x, y, ...lock })
-        tiles[0][y * width + x] = object.gid - 1
+        tiles[0][at] = index
         continue
       }
 
-      if (object.gid - 1 === C.PLAYER_ID) {
+      if (index === C.PLAYER_ID) {
         const { abilityValues, hp } = parseSpawnName(object.name ?? '')
         spawn = { x, y, abilityValues, hp }
+        continue
       }
+
+      const stats = C.ENEMY_STATS[index]
+      if (stats) {
+        monsters.push({
+          x, y, tileIndex: index, health: stats[0], damage: stats[1],
+        })
+        tiles[1][at] = index
+        continue
+      }
+
+      // stairs sit on the terrain layer; pickups on the layer above
+      const terrain =
+        C.STAIR_IDS.includes(index) || C.WALL_IDS.includes(index)
+      tiles[terrain ? 0 : 1][at] = index
     }
   }
 

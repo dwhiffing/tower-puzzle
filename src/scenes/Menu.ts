@@ -13,13 +13,17 @@ export class MenuScene extends Scene {
     this.add.image(width / 2, 40, 'title')
     this.add.sprite(width / 2, 88, 'title-gem').play('title-gem')
     this.add
-      .bitmapText(80, 120, 'wayfarer', 'PRESS Z TO START')
+      .bitmapText(80, 120, 'wayfarer', 'PRESS START')
       .setTintFill(COLOURS[1])
       .setOrigin(0.5)
 
-    this.input.keyboard?.once('keydown-Z', () => {
+    const start = () => {
+      this.input.keyboard?.off('keydown-X', start)
+      this.input.keyboard?.off('keydown-ENTER', start)
       this.scene.launch('Transition', { from: 'Menu', to: 'Game' })
-    })
+    }
+    this.input.keyboard?.on('keydown-X', start)
+    this.input.keyboard?.on('keydown-ENTER', start)
   }
 
   update() {}

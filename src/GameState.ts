@@ -60,7 +60,7 @@ export class GameState {
   }
 
   snapshot(): Snapshot {
-    const { x, y } = this.scene.player
+    const { x = 0, y = 0 } = this.scene.player ?? {}
     return {
       hp: this.hp,
       heldItem: this.heldItem,
@@ -85,7 +85,7 @@ export class GameState {
       abilityValues: [...snapshot.abilityValues],
       tileEdits: structuredClone(snapshot.tileEdits),
     })
-    this.scene.player.setPosition(snapshot.player.x, snapshot.player.y)
+    this.scene.player?.setPosition(snapshot.player.x, snapshot.player.y)
     this.scene.map.restore(snapshot)
   }
 
@@ -93,7 +93,7 @@ export class GameState {
     return this.registry.get(key)
   }
 
-  set(key: string, value: number | number[]) {
+  set(key: string, value: number | number[] | Record<number, TileEdit[]>) {
     return this.registry.set(key, value)
   }
 

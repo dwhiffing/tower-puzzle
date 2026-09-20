@@ -1,17 +1,31 @@
 import * as C from './constants'
 import { DoorState, MonsterState, State } from './rules'
 
-interface TiledLayer {
+export interface TiledObject {
+  id?: number
+  name?: string
+  gid?: number
+  x?: number
+  y?: number
+  width?: number
+  height?: number
+  rotation?: number
+  type?: string
+  visible?: boolean
+}
+
+export interface TiledLayer {
   name: string
   type: string
   data?: number[]
-  objects?: { name?: string; gid?: number; x?: number; y?: number }[]
+  objects?: TiledObject[]
 }
 
 export interface TiledLevel {
   width: number
   height: number
   layers: TiledLayer[]
+  nextobjectid?: number
 }
 
 export interface Spawn {
@@ -21,22 +35,10 @@ export interface Spawn {
   hp: number
 }
 
-const DEFAULT_HP = C.STARTING_HP
-
 /** Parses a spawn object name like "4,1,3" or "4,1,3|hp:8". */
 export function parseSpawnName(name: string) {
-  const [valuePart, ...rest] = name.split('|')
-  const abilityValues = valuePart
-    .split(',')
-    .map((part) => Number(part.trim()))
-    .filter((value) => Number.isFinite(value))
-
-  let hp = DEFAULT_HP
-  for (const option of rest) {
-    const match = /^hp:\s*(\d+)$/i.exec(option.trim())
-    if (match) hp = Number(match[1])
-  }
-  return { abilityValues, hp }
+  const hp = Number(name)
+  return { abilityValues: [], hp: Number.isNaN(hp) ? C.STARTING_HP : hp }
 }
 
 /**
@@ -117,20 +119,17 @@ export function loadLevel(level: TiledLevel): State {
       }
 
       // stairs sit on the terrain layer; pickups on the layer above
-      const terrain =
-        C.STAIR_IDS.includes(index) || C.WALL_IDS.includes(index)
+      const terrain = C.STAIR_IDS.includes(index) || C.WALL_IDS.includes(index)
       tiles[terrain ? 0 : 1][at] = index
     }
   }
-
-  if (!spawn) throw new Error('level has no spawn object')
 
   return {
     width,
     height,
     tiles,
-    player: { x: spawn.x, y: spawn.y },
-    hp: spawn.hp,
+    player: spawn ? { x: spawn.x, y: spawn.y } : { x: -1, y: -1 },
+    hp: spawn?.hp ?? C.STARTING_HP,
     heldItem: C.NULL_ITEM_ID,
     // values are picked up in the level, never granted at spawn
     abilityValues: [],

@@ -9,9 +9,14 @@
 //   START -> Enter, SELECT -> Space (the two pill buttons below)
 
 type InputName =
-  | 'left' | 'right' | 'up' | 'down'
-  | 'a' | 'b'
-  | 'start' | 'select'
+  | 'left'
+  | 'right'
+  | 'up'
+  | 'down'
+  | 'a'
+  | 'b'
+  | 'start'
+  | 'select'
 
 // a touch hit-box, as fractions of the control panel: x/w of its width,
 // y/h of its height (0,0 = top left, 1,1 = bottom right)
@@ -45,7 +50,7 @@ export const TOUCH_DEBUG = false
 // haptics: buzz this long (ms) whenever an input starts being pressed —
 // press or slide-over, so handovers between areas are felt. Android
 // only; iOS Safari has no vibration API and silently skips it
-export const VIBRATE_MS = 12
+export const VIBRATE_MS = 150
 
 // ---- visual layout --------------------------------------------------
 // where the controls are drawn (independent of the hit rects, which
@@ -155,14 +160,19 @@ export function setupTouchControls() {
      blur the pixels. */
   const container = document.getElementById('game-container')!
   const sizeGame = () => {
-    const availableW = window.innerWidth
-    const availableH = window.innerHeight * (1 - CONTROLS_MIN_FRACTION)
-    const scale = Math.max(
+    /* Scale in DEVICE pixels, not CSS pixels: a phone with a fractional
+       devicePixelRatio (the Pixel 5 reports 2.75) turns a whole CSS scale
+       into a fractional device scale, which is what smears the art. */
+    const dpr = window.devicePixelRatio || 1
+    const availableW = window.innerWidth * dpr
+    const availableH = window.innerHeight * (1 - CONTROLS_MIN_FRACTION) * dpr
+    const deviceScale = Math.max(
       1,
       Math.floor(Math.min(availableW / GAME_W, availableH / GAME_H)),
     )
-    container.style.width = `${GAME_W * scale}px`
-    container.style.height = `${GAME_H * scale}px`
+    // convert back to the CSS size that lands on that whole device scale
+    container.style.width = `${(GAME_W * deviceScale) / dpr}px`
+    container.style.height = `${(GAME_H * deviceScale) / dpr}px`
   }
   sizeGame()
   window.addEventListener('resize', sizeGame)
@@ -191,8 +201,10 @@ export function setupTouchControls() {
   const labelSelect = el('text')
   const labelStart = el('text')
   for (const [text, node] of [
-    ['A', glyphA], ['B', glyphB],
-    ['SELECT', labelSelect], ['START', labelStart],
+    ['A', glyphA],
+    ['B', glyphB],
+    ['SELECT', labelSelect],
+    ['START', labelStart],
   ] as const) {
     node.textContent = text
     node.setAttribute('text-anchor', 'middle')
@@ -202,8 +214,12 @@ export function setupTouchControls() {
     node.setAttribute('stroke', 'none')
   }
   const pieces = [
-    cross, ...Object.values(tris),
-    ringA, ringB, pillSelect, pillStart,
+    cross,
+    ...Object.values(tris),
+    ringA,
+    ringB,
+    pillSelect,
+    pillStart,
   ]
   for (const piece of pieces) {
     piece.setAttribute('stroke-width', String(STROKE_W))
@@ -442,8 +458,10 @@ export function setupTouchControls() {
       // fire a step the player did not choose
       hits = hits.filter(
         (input) =>
-          (input !== 'left' && input !== 'right' &&
-            input !== 'up' && input !== 'down') ||
+          (input !== 'left' &&
+            input !== 'right' &&
+            input !== 'up' &&
+            input !== 'down') ||
           input === p.startDir,
       )
       // buttons stay pinned to the touch that pressed them
@@ -453,8 +471,7 @@ export function setupTouchControls() {
     for (const input of now) {
       if (!pressed.has(input)) {
         sendKey('keydown', input)
-        // haptics, currently disabled:
-        // navigator.vibrate?.(VIBRATE_MS)
+        navigator.vibrate?.(VIBRATE_MS)
       }
     }
     for (const input of pressed) if (!now.has(input)) sendKey('keyup', input)

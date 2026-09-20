@@ -1,7 +1,7 @@
-import * as C from '../constants'
-import { parseSpawnName } from '../level'
+import * as C from './constants'
+import { parseSpawnName } from './level'
 import { Door } from './Door'
-import { GameScene } from './Game'
+import { GameScene } from './scenes/Game'
 import { Snapshot } from './GameState'
 import { Monster } from './Monster'
 
@@ -20,8 +20,8 @@ export class GameMap {
     const tileset = this.tilemap.addTilesetImage('tilemap', 'tilemap')!
     const edits = scene.state.tileEdits[scene.state.level] ?? []
 
-    this.layers = this.tilemap.layers.map((layer) =>
-      this.tilemap.createLayer(layer.name, tileset, 0, 0)!,
+    this.layers = this.tilemap.layers.map(
+      (layer) => this.tilemap.createLayer(layer.name, tileset, 0, 0)!,
     )
 
     this.baseTiles = this.layers.map((layer) => {

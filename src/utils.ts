@@ -1,3 +1,19 @@
+import * as C from './constants'
+
+export function flashSprite(
+  sprite: Phaser.GameObjects.Sprite,
+  timer?: Phaser.Time.TimerEvent,
+  onComplete?: () => void,
+  color = C.COLOURS[3],
+) {
+  sprite.setTintFill(color)
+  timer?.remove()
+  return sprite.scene.time.delayedCall(200, () => {
+    sprite.clearTint()
+    onComplete?.()
+  })
+}
+
 function recolorTexture(
   scene: Phaser.Scene,
   sourceKey: string,

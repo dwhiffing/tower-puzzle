@@ -1,6 +1,6 @@
-import * as C from '../constants'
-import { flashSprite } from '../flash'
-import { GameScene } from './Game'
+import * as C from './constants'
+import { flashSprite } from './utils'
+import { GameScene } from './scenes/Game'
 
 export class Monster {
   scene: GameScene

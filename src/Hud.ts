@@ -1,5 +1,5 @@
-import * as C from '../constants'
-import { GameScene } from './Game'
+import * as C from './constants'
+import { GameScene } from './scenes/Game'
 
 const x = 145
 const t = 16

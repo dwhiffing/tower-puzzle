@@ -1,9 +1,9 @@
 import * as C from '../constants'
-import { flashSprite } from '../flash'
+import { flashSprite } from '../utils'
 import { State, step } from '../rules'
-import { GameState, Snapshot } from './GameState'
-import { Hud } from './Hud'
-import { GameMap } from './Map'
+import { GameState, Snapshot } from '../GameState'
+import { Hud } from '../Hud'
+import { GameMap } from '../Map'
 
 export class GameScene extends Phaser.Scene {
   map: GameMap
@@ -14,6 +14,8 @@ export class GameScene extends Phaser.Scene {
   isMoveHeld = false
   isAttacking = false
   isDead = false
+  /** Set by the debug level skip so arrival ignores the staircases. */
+  skippedDebug = false
   playerFlashTimer?: Phaser.Time.TimerEvent
   cursors: Phaser.Types.Input.Keyboard.CursorKeys
   zKey: Phaser.Input.Keyboard.Key
@@ -44,9 +46,14 @@ export class GameScene extends Phaser.Scene {
     this.state.set('hp', this.map.spawn?.hp ?? C.STARTING_HP)
     this.hud = new Hud(this)
     this.createPlayer()
+    this.skippedDebug = false
     this.cursors = this.input.keyboard!.createCursorKeys()
     this.zKey = this.input.keyboard!.addKey('Z')
     this.xKey = this.input.keyboard!.addKey('X')
+    if (import.meta.env.DEV) {
+      this.input.keyboard!.on('keydown-Q', () => this.skipLevel(-1))
+      this.input.keyboard!.on('keydown-W', () => this.skipLevel(1))
+    }
     this.moveTimer = 0
     this.undoStack = []
     this.redoStack = []
@@ -77,11 +84,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   createPlayer() {
-    const arriveAt = this.state.lastLevel
-      ? this.state.lastLevel < this.state.level
-        ? C.STAIRS_DOWN_ID
-        : C.STAIRS_UP_ID
-      : undefined
+    const arriveAt = this.skippedDebug
+      ? undefined
+      : this.state.lastLevel
+        ? this.state.lastLevel < this.state.level
+          ? C.STAIRS_DOWN_ID
+          : C.STAIRS_UP_ID
+        : undefined
     const start =
       (arriveAt ? this.map.findTile(arriveAt) : undefined) ??
       this.map.spawn ??
@@ -295,6 +304,26 @@ export class GameScene extends Phaser.Scene {
   gameOver() {
     this.isDead = true
     this.player.setVisible(false)
+  }
+
+  /** Debug only: jump a level without needing the gem or the stairs. */
+  skipLevel = (delta: number) => {
+    if (this.scene.isActive('Transition')) return
+    const newLevel = this.state.level + delta
+    if (newLevel < 1 || newLevel > C.LEVEL_COUNT) return
+
+    this.state.set('heldItem', C.NULL_ITEM_ID)
+    // a non-null lastLevel keeps create() from resetting the run, while
+    // skipDebug tells createPlayer to use the spawn instead of a staircase
+    this.registry.set('lastLevel', this.state.level)
+    this.registry.set('level', newLevel)
+    this.skippedDebug = true
+    this.scene.launch('Transition', {
+      from: 'Game',
+      to: 'Game',
+      restart: true,
+      duration: 300,
+    })
   }
 
   nextLevel = (index: number) => {

@@ -1,6 +1,6 @@
 import { Scene } from 'phaser'
 import * as C from '../constants'
-import { recolorBitmapFont } from '../recolor'
+import { recolorBitmapFont } from '../utils'
 
 export class BootScene extends Scene {
   constructor() {

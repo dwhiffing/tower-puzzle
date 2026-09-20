@@ -23,3 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 **/*.tiled-session
+# level generation and analysis; not part of the game build
+tools/
+.tmp-*.cjs

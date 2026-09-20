@@ -1,4 +1,5 @@
 import * as C from '../constants'
+import { parseSpawnName } from '../level'
 import { Door } from './Door'
 import { GameScene } from './Game'
 import { Snapshot } from './GameState'
@@ -10,7 +11,7 @@ export class GameMap {
   layers: Phaser.Tilemaps.TilemapLayer[] = []
   monsters = new Map<string, Monster>()
   doors = new Map<string, Door>()
-  spawn?: { x: number; y: number; abilityValues: number[] }
+  spawn?: { x: number; y: number; abilityValues: number[]; hp: number }
   baseTiles: number[][] = []
 
   constructor(scene: GameScene) {
@@ -155,12 +156,9 @@ export class GameMap {
         if (object.gid === undefined) continue
         if (object.gid - 1 !== C.PLAYER_ID) continue
 
-        const abilityValues = (object.name ?? '')
-          .split(',')
-          .map((part) => Number(part.trim()))
-          .filter((value) => Number.isFinite(value))
+        const { abilityValues, hp } = parseSpawnName(object.name ?? '')
 
-        this.spawn = { ...this.objectTile(object), abilityValues }
+        this.spawn = { ...this.objectTile(object), abilityValues, hp }
         return this.spawn
       }
     }
@@ -230,13 +228,16 @@ export class GameMap {
     for (const layer of this.layers) this.setTile(layer, -1, x, y)
   }
 
+  // Phaser reports a tile's gid, which is one above our tile index.
   findTile(indices?: number[] | number | null) {
+    const match = (t: Phaser.Tilemaps.Tile) =>
+      t.index !== -1 &&
+      (Array.isArray(indices)
+        ? indices.includes(t.index - 1)
+        : t.index - 1 === indices)
+
     for (const layer of this.layers) {
-      const tile = layer.findTile((t) =>
-        Array.isArray(indices)
-          ? indices.includes(t.index)
-          : t.index === indices,
-      )
+      const tile = layer.findTile(match)
       if (tile) return tile
     }
     return null

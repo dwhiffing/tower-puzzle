@@ -1,4 +1,4 @@
-import { NULL_ITEM_ID } from '../constants'
+import * as C from '../constants'
 import { GameScene } from './Game'
 
 interface TileEdit {
@@ -49,11 +49,11 @@ export class GameState {
   }
 
   get hp(): number {
-    return this.registry.get('hp') ?? 10
+    return this.registry.get('hp') ?? C.STARTING_HP
   }
 
   get heldItem(): number {
-    return this.registry.get('heldItem') ?? NULL_ITEM_ID
+    return this.registry.get('heldItem') ?? C.NULL_ITEM_ID
   }
 
   get level(): number {
@@ -119,8 +119,8 @@ export class GameState {
 
   reset() {
     this.registry.set({
-      heldItem: NULL_ITEM_ID,
-      hp: 10,
+      heldItem: C.NULL_ITEM_ID,
+      hp: C.STARTING_HP,
       tileEdits: {},
       abilityValues: [],
       abilityValueIndex: 0,

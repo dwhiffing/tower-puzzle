@@ -32,14 +32,16 @@ export class GameScene extends Phaser.Scene {
     const isNewRun = !lastLevel
     this.state = new GameState(this, isNewRun)
     this.map = new GameMap(this)
-    if (isNewRun) {
-      const values = this.map.spawn?.abilityValues
+    const values = this.map.spawn?.abilityValues
+    if (isNewRun || values?.length) {
       this.state.set(
         'abilityValues',
         values?.length ? values : C.STARTING_ABILITY_VALUES,
       )
       this.state.set('abilityValueIndex', 0)
     }
+    // each level is balanced on its own hp, so arriving never carries damage
+    this.state.set('hp', this.map.spawn?.hp ?? C.STARTING_HP)
     this.hud = new Hud(this)
     this.createPlayer()
     this.cursors = this.input.keyboard!.createCursorKeys()
@@ -80,10 +82,11 @@ export class GameScene extends Phaser.Scene {
         ? C.STAIRS_DOWN_ID
         : C.STAIRS_UP_ID
       : undefined
-    const start = arriveAt
-      ? this.map.findTile(arriveAt)
-      : (this.map.spawn ?? this.map.findTile(C.PLAYER_ID + 1))
-    const spawnTile = this.map.findTile(C.PLAYER_ID + 1)
+    const start =
+      (arriveAt ? this.map.findTile(arriveAt) : undefined) ??
+      this.map.spawn ??
+      this.map.findTile(C.PLAYER_ID)
+    const spawnTile = this.map.findTile(C.PLAYER_ID)
     if (spawnTile) this.map.removeTile(spawnTile.x, spawnTile.y)
 
     this.player = this.add
@@ -112,6 +115,47 @@ export class GameScene extends Phaser.Scene {
     if (undo) this.undo()
     else this.redo()
     return true
+  }
+
+  toRulesState(): State {
+    const { width, height } = this.map.tilemap
+    const tiles = this.map.layers.map((layer) => {
+      const indices: number[] = new Array(width * height).fill(-1)
+      layer.forEachTile((tile) => {
+        indices[tile.y * width + tile.x] =
+          tile.index === -1 ? -1 : tile.index - 1
+      })
+      return indices
+    })
+
+    return {
+      width,
+      height,
+      tiles,
+      player: {
+        x: this.player.x / C.TILE_SIZE,
+        y: this.player.y / C.TILE_SIZE,
+      },
+      hp: this.state.hp,
+      heldItem: this.state.heldItem,
+      abilityValues: [...this.state.abilityValues],
+      abilityValueIndex: this.state.abilityValueIndex,
+      monsters: [...this.map.monsters.values()].map((m) => ({
+        x: m.x,
+        y: m.y,
+        tileIndex: m.tileIndex,
+        health: m.health,
+        damage: m.damage,
+      })),
+      doors: [...this.map.doors.values()].map((d) => ({
+        x: d.x,
+        y: d.y,
+        operator: d.operator,
+        value: d.value,
+      })),
+      dead: this.isDead,
+      won: false,
+    }
   }
 
   pushHistory() {

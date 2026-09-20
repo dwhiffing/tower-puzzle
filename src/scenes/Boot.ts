@@ -14,6 +14,11 @@ export class BootScene extends Scene {
       'assets/pixel-dan.png',
       'assets/pixel-dan.xml',
     )
+    this.load.image('title', 'assets/title.png')
+    this.load.spritesheet('title-gem', 'assets/title-gem.png', {
+      frameWidth: 36,
+      frameHeight: 25,
+    })
     this.load.spritesheet('tilemap', 'assets/tilemap.png', {
       frameWidth: C.TILE_SIZE,
       frameHeight: C.TILE_SIZE,
@@ -33,7 +38,13 @@ export class BootScene extends Scene {
       [C.PIXEL_FONT_OUTLINE]: null,
       [C.PIXEL_FONT_BODY]: C.COLOURS[0],
     })
-    this.scene.start('Game')
-    // this.scene.launch('Transition', { from: 'Boot', to: 'Menu' })
+    this.anims.create({
+      key: 'title-gem',
+      frames: this.anims.generateFrameNumbers('title-gem', {}),
+      frameRate: C.TITLE_GEM_FRAMERATE,
+      repeat: -1,
+    })
+    // this.scene.start('Game')
+    this.scene.launch('Transition', { from: 'Boot', to: 'Menu' })
   }
 }

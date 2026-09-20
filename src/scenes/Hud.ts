@@ -42,7 +42,12 @@ export class Hud {
       .setOrigin(0, 0)
       .setDepth(HUD_DEPTH)
 
-    this.scene.registry.events.on('changedata', () => this.refresh())
+    const onChange = () => this.refresh()
+    this.scene.registry.events.on('changedata', onChange)
+    // the registry outlives the scene, so drop the listener on restart
+    this.scene.events.once('shutdown', () =>
+      this.scene.registry.events.off('changedata', onChange),
+    )
 
     // left
     this.drawDottedLine(x, 0, x, x + 1)

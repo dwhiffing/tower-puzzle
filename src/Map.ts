@@ -1,5 +1,5 @@
 import * as C from './constants'
-import { parseSpawnName } from './level'
+import { parseMonsterName, parseSpawnName } from './level'
 import { Door } from './Door'
 import { GameScene } from './scenes/Game'
 import { Snapshot } from './GameState'
@@ -13,6 +13,8 @@ export class GameMap {
   doors = new Map<string, Door>()
   spawn?: { x: number; y: number; abilityValues: number[]; hp: number }
   baseTiles: number[][] = []
+  /** Per-monster stat overrides from object names, by "x,y". */
+  monsterStats = new Map<string, [number, number]>()
 
   constructor(scene: GameScene) {
     this.scene = scene
@@ -130,6 +132,13 @@ export class GameMap {
         if (index === C.PLAYER_ID) continue
         if (Door.parse(object.name ?? '')) continue
         const { x, y } = this.objectTile(object)
+        const defaults = C.ENEMY_STATS[index]
+        if (defaults) {
+          this.monsterStats.set(
+            `${x},${y}`,
+            parseMonsterName(object.name ?? '', defaults),
+          )
+        }
         const terrain = C.STAIR_IDS.includes(index)
         this.layers[terrain ? 0 : 1].putTileAt(object.gid, x, y)
       }
@@ -204,9 +213,9 @@ export class GameMap {
   }
 
   addMonster(x: number, y: number, tileIndex: number) {
-    const stats = C.ENEMY_STATS[tileIndex]
-    if (!stats) return
-    const [health, damage] = stats
+    const defaults = C.ENEMY_STATS[tileIndex]
+    if (!defaults) return
+    const [health, damage] = this.monsterStats.get(`${x},${y}`) ?? defaults
     const monster = new Monster(this.scene, x, y, tileIndex, health, damage)
     this.monsters.set(monster.key, monster)
     return monster

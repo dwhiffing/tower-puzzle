@@ -12,7 +12,6 @@ export interface Snapshot {
   hp: number
   heldItem: number
   abilityValues: number[]
-  abilityValueIndex: number
   tileEdits: Record<number, TileEdit[]>
   player: { x: number; y: number }
   monsters: {
@@ -44,10 +43,6 @@ export class GameState {
     return this.registry.get('abilityValues') ?? []
   }
 
-  get abilityValueIndex(): number {
-    return this.registry.get('abilityValueIndex') ?? []
-  }
-
   get hp(): number {
     return this.registry.get('hp') ?? C.STARTING_HP
   }
@@ -70,7 +65,6 @@ export class GameState {
       hp: this.hp,
       heldItem: this.heldItem,
       abilityValues: [...this.abilityValues],
-      abilityValueIndex: this.abilityValueIndex,
       tileEdits: structuredClone(this.tileEdits),
       player: { x, y },
       monsters: [...this.scene.map.monsters.values()].map((m) => ({
@@ -89,7 +83,6 @@ export class GameState {
       hp: snapshot.hp,
       heldItem: snapshot.heldItem,
       abilityValues: [...snapshot.abilityValues],
-      abilityValueIndex: snapshot.abilityValueIndex,
       tileEdits: structuredClone(snapshot.tileEdits),
     })
     this.scene.player.setPosition(snapshot.player.x, snapshot.player.y)
@@ -104,15 +97,6 @@ export class GameState {
     return this.registry.set(key, value)
   }
 
-  nextAbilityValue() {
-    const { abilityValues, abilityValueIndex } = this
-    if (abilityValues.length === 0) return
-    this.set(
-      'abilityValueIndex',
-      (abilityValueIndex + 1) % abilityValues.length,
-    )
-  }
-
   inc(key: string, value: number) {
     return this.registry.inc(key, value)
   }
@@ -123,7 +107,6 @@ export class GameState {
       hp: C.STARTING_HP,
       tileEdits: {},
       abilityValues: [],
-      abilityValueIndex: 0,
       level: 1,
       lastLevel: null,
     })

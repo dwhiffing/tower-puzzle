@@ -31,7 +31,6 @@ export interface State {
   hp: number
   heldItem: number
   abilityValues: number[]
-  abilityValueIndex: number
   monsters: MonsterState[]
   doors: DoorState[]
   dead: boolean
@@ -45,6 +44,7 @@ export type Effect =
   | { type: 'swap'; x: number; y: number }
   | { type: 'dig'; x: number; y: number }
   | { type: 'ring' }
+  | { type: 'value'; value: number }
   | { type: 'pickup'; item: number; dropped: number }
   | { type: 'potion'; amount: number }
   | { type: 'door'; x: number; y: number }
@@ -79,8 +79,13 @@ const clearTile = (state: State, x: number, y: number) => {
   for (const layer of state.tiles) layer[y * state.width + x] = -1
 }
 
+/**
+ * The value the next ability will spend. Values are collected off the
+ * ground and consumed oldest-first; with none in hand an action counts
+ * as DEFAULT_VALUE.
+ */
 export const liveValue = (state: State) =>
-  state.abilityValues[state.abilityValueIndex] ?? 0
+  state.abilityValues[0] ?? C.DEFAULT_VALUE
 
 export const clone = (state: State): State => ({
   ...state,
@@ -91,10 +96,10 @@ export const clone = (state: State): State => ({
   doors: state.doors.map((d) => ({ ...d })),
 })
 
+/** Spends the front value, if the player has one. */
 const advance = (state: State) => {
   if (state.abilityValues.length === 0) return
-  state.abilityValueIndex =
-    (state.abilityValueIndex + 1) % state.abilityValues.length
+  state.abilityValues.shift()
 }
 
 const doorAccepts = (door: DoorState, value: number) =>
@@ -205,6 +210,10 @@ export function step(input: State, dir: Dir): StepResult | null {
     state.abilityValues.reverse()
     swapHeldItem(state, C.NULL_ITEM_ID)
     effects.push({ type: 'ring' })
+  } else if (C.valueForTile(index) !== null) {
+    // values are collected, not held: they queue up and spend one at a time
+    state.abilityValues.push(C.valueForTile(index)!)
+    effects.push({ type: 'value', value: C.valueForTile(index)! })
   } else if (C.HELD_ITEM_IDS.includes(index)) {
     const dropped = swapHeldItem(state, index)
     effects.push({ type: 'pickup', item: index, dropped })

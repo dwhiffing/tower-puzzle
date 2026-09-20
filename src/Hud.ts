@@ -8,21 +8,21 @@ const HUD_DEPTH = 20
 export class Hud {
   scene: GameScene
   borderGraphics: Phaser.GameObjects.Graphics
-  abilityValueGraphics: Phaser.GameObjects.Graphics
-  abilityValueTexts: Phaser.GameObjects.BitmapText[]
+  abilityValueSprites: Phaser.GameObjects.Sprite[]
   itemSprite: Phaser.GameObjects.Sprite
   hpText: Phaser.GameObjects.BitmapText
 
   constructor(scene: GameScene) {
     this.scene = scene
     this.borderGraphics = this.scene.add.graphics().setDepth(HUD_DEPTH)
-    this.abilityValueGraphics = this.scene.add.graphics().setDepth(HUD_DEPTH)
-    this.abilityValueTexts = [0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) =>
+    // values are drawn straight from the tilemap: frames 16-23 are the
+    // values 2-9, and 24-31 the highlighted copies
+    this.abilityValueSprites = [0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) =>
       this.scene.add
-        .bitmapText(x + 7, 34 + i * 12 + 1, 'wayfarer', '')
-        .setTintFill(C.COLOURS[1])
-        .setOrigin(0.5, 0)
-        .setDepth(HUD_DEPTH),
+        .sprite(x - 1, t * 2 + i * t, 'tilemap', C.VALUE_TILE_FIRST)
+        .setOrigin(0, 0)
+        .setDepth(HUD_DEPTH)
+        .setVisible(false),
     )
     this.borderGraphics.fillStyle(C.COLOURS[0]).fillRect(x - 1, 0, 160, 145)
     this.hpText = this.scene.add
@@ -62,23 +62,19 @@ export class Hud {
   }
 
   refresh() {
-    const { hp, heldItem, abilityValues, abilityValueIndex } = this.scene.state
+    const { hp, heldItem, abilityValues } = this.scene.state
     this.hpText.setText(`${hp}`).setLetterSpacing(hp > 19 ? -1 : 0)
     this.itemSprite.setFrame(heldItem)
 
-    this.abilityValueGraphics.clear()
-    for (let i = 0; i < 9; i++) {
-      if (typeof abilityValues[i] === 'number') {
-        const color = C.COLOURS[i === abilityValueIndex ? 3 : 1]
-        this.abilityValueTexts[i]
-          .setTintFill(color)
-          .setText(`${abilityValues[i]}`)
-        this.abilityValueGraphics.lineStyle(1, color)
-        this.abilityValueGraphics.strokeRect(x + 3, 34 + i * 12, 10, 10)
-      } else {
-        this.abilityValueTexts[i].setText('')
+    this.abilityValueSprites.forEach((sprite, i) => {
+      const value = abilityValues[i]
+      if (typeof value !== 'number') {
+        sprite.setVisible(false)
+        return
       }
-    }
+      // values spend oldest-first, so the front one is what's next
+      sprite.setVisible(true).setFrame(C.tileForValue(value, i === 0))
+    })
   }
 
   drawDottedLine(ax = 0, ay = 0, bx = 0, by = 0) {

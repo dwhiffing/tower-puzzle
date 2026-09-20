@@ -47,14 +47,8 @@ export class GameScene extends Phaser.Scene {
     const isNewRun = !lastLevel
     this.state = new GameState(this, isNewRun)
     this.map = new GameMap(this)
-    const values = this.map.spawn?.abilityValues
-    if (isNewRun || values?.length) {
-      this.state.set(
-        'abilityValues',
-        values?.length ? values : C.STARTING_ABILITY_VALUES,
-      )
-      this.state.set('abilityValueIndex', 0)
-    }
+    // values are collected off the ground, so every level starts empty
+    this.state.set('abilityValues', [])
     // each level is balanced on its own hp, so arriving never carries damage
     this.state.set('hp', this.map.spawn?.hp ?? C.STARTING_HP)
     this.hud = new Hud(this)
@@ -169,7 +163,6 @@ export class GameScene extends Phaser.Scene {
       hp: this.state.hp,
       heldItem: this.state.heldItem,
       abilityValues: [...this.state.abilityValues],
-      abilityValueIndex: this.state.abilityValueIndex,
       monsters: [...this.map.monsters.values()].map((m) => ({
         x: m.x,
         y: m.y,
@@ -231,7 +224,6 @@ export class GameScene extends Phaser.Scene {
     this.state.set('hp', state.hp)
     this.state.set('heldItem', state.heldItem)
     this.state.set('abilityValues', state.abilityValues)
-    this.state.set('abilityValueIndex', state.abilityValueIndex)
 
     for (const effect of effects) {
       if (effect.type === 'move' || effect.type === 'swap') {

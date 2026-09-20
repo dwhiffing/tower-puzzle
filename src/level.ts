@@ -39,6 +39,19 @@ export function parseSpawnName(name: string) {
   return { abilityValues, hp }
 }
 
+/**
+ * Parses a monster object name that overrides its defaults: "6/2" sets
+ * health and damage, "6" sets health alone. Empty means use ENEMY_STATS.
+ */
+export function parseMonsterName(name: string, fallback: [number, number]) {
+  const match = /^(\d+)?\s*(?:\/\s*(\d+))?$/.exec(name.trim())
+  if (!match || (!match[1] && !match[2])) return fallback
+  return [
+    match[1] ? Number(match[1]) : fallback[0],
+    match[2] ? Number(match[2]) : fallback[1],
+  ] as [number, number]
+}
+
 export function parseDoorName(name: string) {
   const match = /^([><=])\s*(\d+)$/.exec(name.trim())
   if (!match) return null
@@ -97,9 +110,8 @@ export function loadLevel(level: TiledLevel): State {
 
       const stats = C.ENEMY_STATS[index]
       if (stats) {
-        monsters.push({
-          x, y, tileIndex: index, health: stats[0], damage: stats[1],
-        })
+        const [health, damage] = parseMonsterName(object.name ?? '', stats)
+        monsters.push({ x, y, tileIndex: index, health, damage })
         tiles[1][at] = index
         continue
       }
@@ -120,10 +132,8 @@ export function loadLevel(level: TiledLevel): State {
     player: { x: spawn.x, y: spawn.y },
     hp: spawn.hp,
     heldItem: C.NULL_ITEM_ID,
-    abilityValues: spawn.abilityValues.length
-      ? spawn.abilityValues
-      : [...C.STARTING_ABILITY_VALUES],
-    abilityValueIndex: 0,
+    // values are picked up in the level, never granted at spawn
+    abilityValues: [],
     monsters,
     doors,
     dead: false,

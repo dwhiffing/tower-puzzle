@@ -5,6 +5,12 @@ body {
   background-color: #000000;
 }
 
+/* the game is pixel art: never let the browser smooth it when upscaling */
+canvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
 #app {
   width: 100%;
   height: 100vh;
@@ -25,7 +31,13 @@ body {
 
 /* PICO-8-style mobile layout (body.touch is set by src/touch.ts): the
    game parks at the top and the touch controls fill the space below */
-body.touch #app {
+body.touch /* the game is pixel art: never let the browser smooth it when upscaling */
+canvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+#app {
   flex-direction: column;
   justify-content: center;
   align-items: center;

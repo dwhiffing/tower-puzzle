@@ -107,7 +107,7 @@ export class GameState {
       hp: C.STARTING_HP,
       tileEdits: {},
       abilityValues: [],
-      level: 1,
+      level: C.STARTING_LEVEL,
       lastLevel: null,
     })
   }

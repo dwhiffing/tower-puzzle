@@ -1,7 +1,9 @@
 import * as C from '../constants'
 import { flashSprite } from '../utils'
-import { State, step } from '../rules'
-import { GameState, Snapshot } from '../GameState'
+import { step } from '../rules'
+import type { State } from '../rules'
+import { GameState } from '../GameState'
+import type { Snapshot } from '../GameState'
 import { Hud } from '../Hud'
 import { GameMap } from '../Map'
 
@@ -28,7 +30,6 @@ export class GameScene extends Phaser.Scene {
   isAttacking = false
   isDead = false
   /** Set by the debug level skip so arrival ignores the staircases. */
-  skippedDebug = false
   playerFlashTimer?: Phaser.Time.TimerEvent
   cursors: Phaser.Types.Input.Keyboard.CursorKeys
   undoKey: Phaser.Input.Keyboard.Key
@@ -53,7 +54,6 @@ export class GameScene extends Phaser.Scene {
     this.state.set('hp', this.map.spawn?.hp ?? C.STARTING_HP)
     this.hud = new Hud(this)
     this.createPlayer()
-    this.skippedDebug = false
     this.cursors = this.input.keyboard!.createCursorKeys()
     this.undoKey = this.input.keyboard!.addKey('X')
     this.redoKey = this.input.keyboard!.addKey('C')
@@ -99,17 +99,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   createPlayer() {
-    const arriveAt = this.skippedDebug
-      ? undefined
-      : this.state.lastLevel
-        ? this.state.lastLevel < this.state.level
-          ? C.STAIRS_DOWN_ID
-          : C.STAIRS_UP_ID
-        : undefined
-    const start =
-      (arriveAt ? this.map.findTile(arriveAt) : undefined) ??
-      this.map.spawn ??
-      this.map.findTile(C.PLAYER_ID)
+    const start = this.map.spawn ?? this.map.findTile(C.PLAYER_ID)
     const spawnTile = this.map.findTile(C.PLAYER_ID)
     if (spawnTile) this.map.removeTile(spawnTile.x, spawnTile.y)
 
@@ -233,10 +223,13 @@ export class GameScene extends Phaser.Scene {
       } else if (effect.type === 'door') {
         this.map.removeDoor(effect.x, effect.y)
       } else if (effect.type === 'exit') {
-        this.nextLevel(effect.stairs)
+        this.nextLevel()
       }
     }
 
+    this.map.monsterStats = new Map(
+      state.monsters.map((m) => [`${m.x},${m.y}`, [m.health, m.damage]]),
+    )
     this.syncTiles(state)
     this.syncMonsters(state)
 
@@ -326,11 +319,9 @@ export class GameScene extends Phaser.Scene {
     if (newLevel < 1 || newLevel > C.LEVEL_COUNT) return
 
     this.state.set('heldItem', C.NULL_ITEM_ID)
-    // a non-null lastLevel keeps create() from resetting the run, while
-    // skipDebug tells createPlayer to use the spawn instead of a staircase
+    // a non-null lastLevel keeps create() from resetting the run
     this.registry.set('lastLevel', this.state.level)
     this.registry.set('level', newLevel)
-    this.skippedDebug = true
     this.scene.launch('Transition', {
       from: 'Game',
       to: 'Game',
@@ -339,9 +330,8 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
-  nextLevel = (index: number) => {
-    const isUp = index === C.STAIRS_UP_ID
-    const newLevel = this.state.level + (isUp ? 1 : -1)
+  nextLevel = () => {
+    const newLevel = this.state.level + 1
     if (newLevel > C.LEVEL_COUNT) return
 
     this.state.set('heldItem', C.NULL_ITEM_ID)

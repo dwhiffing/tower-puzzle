@@ -1,6 +1,7 @@
 export const COLOURS = [0x120a19, 0x5e4069, 0x6e1f22, 0xc4181f]
 // export const COLOURS = [0x300030, 0x602878, 0xf89020, 0xf8f088]
 
+export const STARTING_LEVEL = 1
 export const LEVEL_COUNT = 9
 export const STARTING_ABILITY_VALUES = [4, 1, 3]
 export const STARTING_HP = 10
@@ -12,7 +13,6 @@ export const ENEMY_IDS = [40, 41, 42, 43, 44, 45]
 export const ENEMY_IDLE_OFFSET = 8
 export const ENEMY_IDLE_FRAMERATE = 2
 export const TITLE_GEM_FRAMERATE = 6
-export const STAIRS_DOWN_ID = 2
 export const STAIRS_UP_ID = 3
 export const NULL_ITEM_ID = 7
 export const GEM_IDS = [15]
@@ -48,7 +48,7 @@ export const RING_IDS = [11]
 export const BOOTS_IDS = [12]
 export const SWORD_DAMAGE_MULTIPLIER = 2
 export const CURRENCY_IDS = Object.keys(CURRENCY_TILES).map(Number)
-export const STAIR_IDS = [STAIRS_UP_ID, STAIRS_DOWN_ID]
+export const STAIR_IDS = [STAIRS_UP_ID]
 export const HELD_ITEM_IDS = [
   ...KEY_IDS,
   ...SWORD_IDS,
@@ -67,5 +67,5 @@ export const ENEMY_STATS: Record<number, [number, number]> = {
   42: [6, 3],
   43: [8, 3],
   44: [9, 4],
-  45: [12, 4],
+  45: [9, 4],
 }

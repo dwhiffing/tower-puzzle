@@ -2,7 +2,7 @@ import * as C from './constants'
 import { parseMonsterName, parseSpawnName } from './level'
 import { Door } from './Door'
 import { GameScene } from './scenes/Game'
-import { Snapshot } from './GameState'
+import type { Snapshot } from './GameState'
 import { Monster } from './Monster'
 
 export class GameMap {
@@ -30,12 +30,7 @@ export class GameMap {
        objects. The scene still works on two tile layers, so make the second
        one here and paint the objects onto it. */
     if (this.layers.length < 2) {
-      const blank = this.tilemap.createBlankLayer(
-        'objects',
-        tileset,
-        0,
-        0,
-      )!
+      const blank = this.tilemap.createBlankLayer('objects', tileset, 0, 0)!
       this.layers.push(blank)
     }
     this.paintObjects()
@@ -63,11 +58,16 @@ export class GameMap {
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
           layer.putTileAt(this.baseTiles[i][y * width + x] ?? -1, x, y)
+          // putTileAt reuses the Tile object, so clear any hidden flag left
+          // by a monster that used to stand here; the loop below re-hides
+          // the squares that still have one.
+          layer.getTileAt(x, y)?.setVisible(true)
         }
       }
     })
     for (const e of snapshot.tileEdits[this.scene.state.level] ?? []) {
       this.layers[e.layer]?.putTileAt(e.index, e.x, e.y)
+      this.layers[e.layer]?.getTileAt(e.x, e.y)?.setVisible(true)
     }
 
     // Reuse monsters that are still present so their idle animation keeps
@@ -251,7 +251,11 @@ export class GameMap {
 
     this.removeMonster(x, y)
     const monster = this.addMonster(x, y, index - 1)
-    if (monster) layer.getTileAt(x, y)?.setVisible(false)
+    /* A monster's own tile is hidden so its sprite can stand in for it.
+       putTileAt reuses the Tile object, so that hidden flag would otherwise
+       outlive the monster and swallow anything later placed here -- an item
+       dropped on the square would be there but never drawn. */
+    layer.getTileAt(x, y)?.setVisible(!monster)
 
     const edits = (this.scene.state.tileEdits[this.scene.state.level] ??= [])
     const existing = edits.find(

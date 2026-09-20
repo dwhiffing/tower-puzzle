@@ -48,7 +48,7 @@ export type Effect =
   | { type: 'pickup'; item: number; dropped: number }
   | { type: 'potion'; amount: number }
   | { type: 'door'; x: number; y: number }
-  | { type: 'exit'; x: number; y: number; stairs: number }
+  | { type: 'exit'; x: number; y: number }
   | { type: 'died' }
 
 export interface StepResult {
@@ -152,7 +152,7 @@ export function step(input: State, dir: Dir): StepResult | null {
     state.heldItem = C.NULL_ITEM_ID
     state.player = { x, y }
     state.won = true
-    effects.push({ type: 'move', x, y }, { type: 'exit', x, y, stairs: index })
+    effects.push({ type: 'move', x, y }, { type: 'exit', x, y })
     return { state, effects }
   }
 

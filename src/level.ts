@@ -1,5 +1,5 @@
 import * as C from './constants'
-import { DoorState, MonsterState, State } from './rules'
+import type { DoorState, MonsterState, State } from './rules'
 
 export interface TiledObject {
   id?: number

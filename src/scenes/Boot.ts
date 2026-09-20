@@ -1,5 +1,6 @@
 import { Scene } from 'phaser'
 import * as C from '../constants'
+import { preloadSounds } from '../Sfx'
 import { recolorBitmapFont } from '../utils'
 
 export class BootScene extends Scene {
@@ -26,6 +27,7 @@ export class BootScene extends Scene {
     for (let i = 1; i <= C.LEVEL_COUNT; i++) {
       this.load.tilemapTiledJSON(`level${i}`, `assets/level${i}.json`)
     }
+    preloadSounds(this)
     // this.load.audio('music', 'assets/music.mp3')
   }
 

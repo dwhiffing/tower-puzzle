@@ -1,4 +1,5 @@
 import * as C from '../constants'
+import { RETALIATION_DELAY, play } from '../Sfx'
 import { flashSprite } from '../utils'
 import { step } from '../rules'
 import type { State } from '../rules'
@@ -178,7 +179,8 @@ export class GameScene extends Phaser.Scene {
 
   undo() {
     const snapshot = this.undoStack.pop()
-    if (!snapshot) return
+    if (!snapshot) return play(this, 'invalid-move')
+    play(this, 'undo', 1)
     this.redoStack.push(this.state.snapshot())
     this.state.restore(snapshot)
     this.revive()
@@ -192,24 +194,30 @@ export class GameScene extends Phaser.Scene {
 
   redo() {
     const snapshot = this.redoStack.pop()
-    if (!snapshot) return
+    if (!snapshot) return play(this, 'invalid-move')
+    play(this, 'undo', 1)
     this.undoStack.push(this.state.snapshot())
     this.state.restore(snapshot)
     this.revive()
   }
 
   move(dx: number, dy: number) {
-    const result = step(this.toRulesState(), { dx, dy })
-    if (!result) return
+    const before = this.toRulesState()
+    const result = step(before, { dx, dy })
+    if (!result) {
+      play(this, 'invalid-move', 0.3)
+      return
+    }
 
     this.pushHistory()
-    this.applyEffects(result)
+    this.applyEffects(result, before.heldItem)
   }
 
   /** Mirrors the rules' new state onto the scene, animating as it goes. */
-  applyEffects(result: ReturnType<typeof step> & {}) {
+  applyEffects(result: ReturnType<typeof step> & {}, heldBefore?: number) {
     const { state, effects } = result
     const attack = effects.find((e) => e.type === 'attack')
+    this.playEffectSounds(result, heldBefore ?? C.NULL_ITEM_ID)
 
     this.state.set('hp', state.hp)
     this.state.set('heldItem', state.heldItem)
@@ -248,6 +256,11 @@ export class GameScene extends Phaser.Scene {
     )
 
     this.isAttacking = true
+    if (hurt)
+      this.time.delayedCall(RETALIATION_DELAY, () => {
+        const died = result.effects.some((t) => t.type === 'died')
+        play(this, died ? 'player-dead' : 'player-hit', died ? 0.3 : 0.4)
+      })
     monster.flash(() => {
       if (attack.killed) {
         this.isAttacking = false
@@ -289,6 +302,28 @@ export class GameScene extends Phaser.Scene {
       stale.moveTo(want.x, want.y)
       this.map.monsters.set(stale.key, stale)
     }
+  }
+
+  playEffectSounds(result: ReturnType<typeof step> & {}, heldBefore: number) {
+    const { effects } = result
+    const has = (type: string) => effects.some((e) => e.type === type)
+
+    if (has('exit')) return play(this, 'win-level', 0.2)
+
+    const attack = effects.find((e) => e.type === 'attack')
+    if (attack) {
+      play(this, attack.killed ? 'enemy-dead' : 'enemy-hit')
+      if (C.SHIELD_IDS.includes(heldBefore)) play(this, 'use-shield')
+      return
+    }
+
+    if (has('door')) return play(this, 'use-key', 0.3)
+    if (has('dig')) return play(this, 'use-pickaxe')
+    if (has('swap')) return play(this, 'use-boots')
+    if (has('ring')) return play(this, 'use-ring')
+    if (has('potion')) return play(this, 'use-potion', 0.2)
+    if (has('pickup') || has('value')) return play(this, 'pickup-item')
+    return play(this, 'player-step')
   }
 
   /** Writes the rules' tile grid back onto the tilemap layers. */

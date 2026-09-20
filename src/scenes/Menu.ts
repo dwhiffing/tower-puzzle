@@ -1,5 +1,6 @@
 import { Scene } from 'phaser'
 import { COLOURS } from '../constants'
+import { play } from '../Sfx'
 
 export class MenuScene extends Scene {
   bgGraphics: Phaser.GameObjects.TileSprite
@@ -20,6 +21,7 @@ export class MenuScene extends Scene {
     const start = () => {
       this.input.keyboard?.off('keydown-X', start)
       this.input.keyboard?.off('keydown-ENTER', start)
+      play(this, 'game-start')
       this.scene.launch('Transition', { from: 'Menu', to: 'Game' })
     }
     this.input.keyboard?.on('keydown-X', start)

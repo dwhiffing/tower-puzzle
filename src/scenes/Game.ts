@@ -367,7 +367,11 @@ export class GameScene extends Phaser.Scene {
 
   nextLevel = () => {
     const newLevel = this.state.level + 1
-    if (newLevel > C.LEVEL_COUNT) return
+    if (newLevel > C.LEVEL_COUNT) {
+      this.registry.set('won', true)
+      this.scene.launch('Transition', { from: 'Game', to: 'Menu' })
+      return
+    }
 
     this.state.set('heldItem', C.NULL_ITEM_ID)
     this.state.set('lastLevel', this.state.level)
@@ -376,7 +380,6 @@ export class GameScene extends Phaser.Scene {
       from: 'Game',
       to: 'Game',
       restart: true,
-      duration: 300,
     })
   }
 }

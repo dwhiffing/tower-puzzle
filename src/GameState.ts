@@ -109,6 +109,7 @@ export class GameState {
       abilityValues: [],
       level: C.STARTING_LEVEL,
       lastLevel: null,
+      won: false,
     })
   }
 }

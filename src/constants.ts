@@ -2,7 +2,7 @@ export const COLOURS = [0x120a19, 0x5e4069, 0x6e1f22, 0xc4181f]
 // export const COLOURS = [0x300030, 0x602878, 0xf89020, 0xf8f088]
 
 export const STARTING_LEVEL = 1
-export const LEVEL_COUNT = 9
+export const LEVEL_COUNT = 5
 export const STARTING_ABILITY_VALUES = [4, 1, 3]
 export const STARTING_HP = 10
 export const TILE_SIZE = 16

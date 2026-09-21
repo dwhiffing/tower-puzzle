@@ -1,7 +1,7 @@
 export const COLOURS = [0x120a19, 0x5e4069, 0x6e1f22, 0xc4181f]
 
 export const STARTING_LEVEL = 1
-export const LEVEL_COUNT = 5
+export const LEVEL_COUNT = 6
 export const TILE_SIZE = 16
 export const WALL_ID = 1
 export const STAIR_ID = 3

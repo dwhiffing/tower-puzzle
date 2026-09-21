@@ -114,3 +114,41 @@ export const tileForValue = (value: number, active = false) =>
   (active ? VALUE_TILE_ACTIVE_FIRST : VALUE_TILE_FIRST) +
   value -
   VALUE_TILE_BASE
+
+export const PIXEL_KEY = 'pixel-particle'
+
+export function makePixelTexture(scene: Phaser.Scene) {
+  if (scene.textures.exists(PIXEL_KEY)) return PIXEL_KEY
+  const canvas = scene.textures.createCanvas(PIXEL_KEY, 1, 1)!
+  const ctx = canvas.getContext()
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, 1, 1)
+  canvas.refresh()
+  return PIXEL_KEY
+}
+
+export function burstPixels(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  { count = 10, speed = 80, lifespan = 400, color = C.COLOURS[3] } = {},
+) {
+  makePixelTexture(scene)
+  const emitter = scene.add.particles(
+    x + C.TILE_SIZE / 2,
+    y + C.TILE_SIZE / 2,
+    PIXEL_KEY,
+    {
+      lifespan: { min: lifespan * 0.2, max: lifespan },
+      speed: { min: speed * 0.01, max: speed },
+      scale: { start: 3, end: 1 },
+      angle: { min: 0, max: 360 },
+      tint: color,
+      emitting: false,
+    },
+  )
+  emitter.setDepth(999)
+  emitter.explode(count)
+  scene.time.delayedCall(lifespan + 550, () => emitter.destroy())
+  return emitter
+}

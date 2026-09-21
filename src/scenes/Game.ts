@@ -1,5 +1,5 @@
 import * as C from '../constants'
-import { flashSprite } from '../utils'
+import { burstPixels, flashSprite } from '../utils'
 import { step } from '../rules'
 import type { State } from '../rules'
 import { GameState } from '../GameState'
@@ -216,6 +216,9 @@ export class GameScene extends Phaser.Scene {
     const monster = this.map.getMonster(attack.x, attack.y)
     const hurt = effects.find((e) => e.type === 'hurt')
     const died = effects.some((e) => e.type === 'died')
+    burstPixels(this, attack.x * C.TILE_SIZE - 2, attack.y * C.TILE_SIZE, {
+      count: attack.killed ? 20 : 5,
+    })
     if (!monster) return
 
     monster.setStats(
@@ -228,6 +231,10 @@ export class GameScene extends Phaser.Scene {
     if (hurt)
       this.time.delayedCall(260, () => {
         const died = result.effects.some((t) => t.type === 'died')
+        burstPixels(this, this.player.x, this.player.y, {
+          count: died ? 40 : 10,
+          lifespan: 800,
+        })
         this.sound.play(died ? 'player-dead' : 'player-hit', { volume: 0.35 })
       })
     monster.flash(() => {

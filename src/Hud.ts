@@ -52,9 +52,9 @@ export class Hud {
     // right
     this.drawDottedLine(x + t - 1, t + 3, x + t - 1, t * 2)
     // top
-    this.drawDottedLine(x, t + 1, x + t, t + 1)
+    this.drawDottedLine(x, t + 2, x + t, t + 1)
     // bottom
-    this.drawDottedLine(x, t * 2 - 1, x + t, t * 2 - 1)
+    this.drawDottedLine(x, t * 2, x + t, t * 2 - 1)
 
     this.refresh()
   }
@@ -75,20 +75,14 @@ export class Hud {
   }
 
   drawDottedLine(ax = 0, ay = 0, bx = 0, by = 0) {
-    this.borderGraphics.lineStyle(1, C.COLOURS[2])
+    this.borderGraphics.fillStyle(C.COLOURS[2])
     if (ax === bx) {
       for (let i = ay; i < by; i += 2) {
-        this.borderGraphics
-          .moveTo(ax, i - 1)
-          .lineTo(ax, i)
-          .stroke()
+        this.borderGraphics.fillRect(ax - 1, i - 1, 1, 1)
       }
     } else {
       for (let i = ax; i < bx; i += 2) {
-        this.borderGraphics
-          .moveTo(i - 1, ay)
-          .lineTo(i, ay)
-          .stroke()
+        this.borderGraphics.fillRect(i - 1, ay - 1, 1, 1)
       }
     }
   }

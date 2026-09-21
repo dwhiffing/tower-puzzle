@@ -3,7 +3,7 @@ import { trackViewport } from './utils'
 type Dir = 'left' | 'right' | 'up' | 'down'
 type InputName = Dir | 'a' | 'b'
 
-const VIBRATE_MS = 150
+const VIBRATE_MS = 30
 const CONTROLS_MIN_FRACTION = 0.3
 
 const DPAD = { cx: 0.25, cy: 0.42, size: 0.52, thickness: 0.18 }

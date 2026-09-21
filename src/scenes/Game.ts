@@ -31,6 +31,7 @@ export class GameScene extends Phaser.Scene {
   playerFlashTimer?: Phaser.Time.TimerEvent
   cursors: Phaser.Types.Input.Keyboard.CursorKeys
   undoKey: Phaser.Input.Keyboard.Key
+  undoKey2: Phaser.Input.Keyboard.Key
   undoStack: State[] = []
   undoTimer = 0
   isUndoHeld = false
@@ -50,6 +51,7 @@ export class GameScene extends Phaser.Scene {
     this.createPlayer()
     this.cursors = this.input.keyboard!.createCursorKeys()
     this.undoKey = this.input.keyboard!.addKey('SPACE')
+    this.undoKey2 = this.input.keyboard!.addKey('X')
     this.input.keyboard!.on('keydown-LEFT', () => {
       if (isSelectHeld()) this.skipLevel(-1)
     })
@@ -99,7 +101,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   updateHistory(delta: number) {
-    if (!this.undoKey.isDown) {
+    if (!this.undoKey.isDown && !this.undoKey2.isDown) {
       this.isUndoHeld = false
       this.undoTimer = 0
       return false

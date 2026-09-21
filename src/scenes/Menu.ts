@@ -17,17 +17,29 @@ export class MenuScene extends Scene {
     this.add.image(width / 2, 40, 'title')
     this.add.sprite(width / 2, 88, 'title-gem').play('title-gem')
     const won = this.registry.get('won') === true
-    this.add
+    const prompt = this.add
       .bitmapText(80, 120, 'wayfarer', won ? 'YOU WIN!' : 'PRESS SPACE')
       .setTintFill(COLOURS[1])
       .setOrigin(0.5)
 
+    let bright = true
+    this.time.addEvent({
+      delay: 1000,
+      loop: true,
+      callback: () => {
+        bright = !bright
+        prompt.setTintFill(bright ? COLOURS[1] : COLOURS[2])
+      },
+    })
+
     const start = () => {
       this.input.keyboard?.off('keydown-SPACE', start)
+      this.input.keyboard?.off('keydown-X', start)
       this.sound.play('game-start', { volume: 0.5 })
       this.scene.launch('Transition', { from: 'Menu', to: 'Game' })
     }
     this.input.keyboard?.on('keydown-SPACE', start)
+    this.input.keyboard?.on('keydown-X', start)
   }
 
   update() {}

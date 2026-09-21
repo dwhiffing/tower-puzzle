@@ -30,7 +30,6 @@ export class BootScene extends Scene {
     this.load.audio('enemy-dead', 'assets/sounds/enemy-dead.mp3')
     this.load.audio('enemy-hit', 'assets/sounds/enemy-hit.mp3')
     this.load.audio('game-start', 'assets/sounds/game-start.mp3')
-    this.load.audio('invalid-move', 'assets/sounds/invalid-move.mp3')
     this.load.audio('pickup-item', 'assets/sounds/pickup-item.mp3')
     this.load.audio('player-dead', 'assets/sounds/player-dead.mp3')
     this.load.audio('player-hit', 'assets/sounds/player-hit.mp3')
@@ -61,7 +60,11 @@ export class BootScene extends Scene {
       frameRate: 6,
       repeat: -1,
     })
-    // this.scene.start('Game')
-    this.scene.launch('Transition', { from: 'Boot', to: 'Menu' })
+    // @ts-ignore
+    if (C.STARTING_LEVEL !== 1) {
+      this.scene.start('Game')
+    } else {
+      this.scene.launch('Transition', { from: 'Boot', to: 'Menu' })
+    }
   }
 }

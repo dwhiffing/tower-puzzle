@@ -157,7 +157,7 @@ export class GameScene extends Phaser.Scene {
 
   undo() {
     const prev = this.undoStack.pop()
-    if (!prev) return this.sound.play('invalid-move', { volume: 0.5 })
+    if (!prev) return this.sound.play('player-step', { volume: 2, rate: 0.1 })
     this.sound.play('undo', { volume: 1 })
     this.state.set('hp', prev.hp)
     this.state.set('heldItem', prev.heldItem)
@@ -176,7 +176,7 @@ export class GameScene extends Phaser.Scene {
     const before = this.toRulesState()
     const result = step(before, { dx, dy })
     if (!result) {
-      this.sound.play('invalid-move', { volume: 0.3 })
+      this.sound.play('player-step', { volume: 2, rate: 0.1 })
       return
     }
 

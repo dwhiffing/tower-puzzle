@@ -50,6 +50,10 @@ export class BootScene extends Scene {
       [C.COLOURS[3]]: C.COLOURS[2],
       [C.COLOURS[0]]: C.COLOURS[0],
     })
+    recolorBitmapFont(this, 'pixel', 'pixel-blue', {
+      [C.COLOURS[3]]: C.COLOURS[1],
+      [C.COLOURS[0]]: C.COLOURS[0],
+    })
     recolorBitmapFont(this, 'pixel', 'pixel-door', {
       [C.COLOURS[0]]: null,
       [C.COLOURS[3]]: C.COLOURS[0],

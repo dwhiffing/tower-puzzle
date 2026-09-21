@@ -152,3 +152,24 @@ export function burstPixels(
   scene.time.delayedCall(lifespan + 550, () => emitter.destroy())
   return emitter
 }
+
+export function floatText(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  amount: number,
+) {
+  const label = `${amount < 0 ? '-' : '+'}${Math.abs(amount)}`
+  const text = scene.add
+    .bitmapText(
+      x + C.TILE_SIZE / 2 - 1,
+      y + 8,
+      amount < 0 ? 'pixel' : 'pixel-blue',
+      label,
+    )
+    .setOrigin(0.5, 0.5)
+    .setDepth(41)
+
+  scene.time.delayedCall(600, () => text.destroy())
+  return text
+}

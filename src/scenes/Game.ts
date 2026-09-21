@@ -1,5 +1,5 @@
 import * as C from '../constants'
-import { burstPixels, flashSprite } from '../utils'
+import { burstPixels, flashSprite, floatText } from '../utils'
 import { step } from '../rules'
 import type { State } from '../rules'
 import { GameState } from '../GameState'
@@ -205,6 +205,9 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    const potion = effects.find((e) => e.type === 'potion')
+    if (potion) floatText(this, this.player.x, this.player.y, potion.amount)
+
     this.map.monsterStats = new Map(
       state.monsters.map((m) => [`${m.x},${m.y}`, [m.health, m.damage]]),
     )
@@ -219,6 +222,12 @@ export class GameScene extends Phaser.Scene {
     burstPixels(this, attack.x * C.TILE_SIZE - 2, attack.y * C.TILE_SIZE, {
       count: attack.killed ? 20 : 5,
     })
+    floatText(
+      this,
+      attack.x * C.TILE_SIZE,
+      attack.y * C.TILE_SIZE,
+      -attack.damage,
+    )
     if (!monster) return
 
     monster.setStats(
@@ -235,6 +244,7 @@ export class GameScene extends Phaser.Scene {
           count: died ? 40 : 10,
           lifespan: 800,
         })
+        floatText(this, this.player.x, this.player.y, -hurt.amount)
         this.sound.play(died ? 'player-dead' : 'player-hit', { volume: 0.35 })
       })
     monster.flash(() => {

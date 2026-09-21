@@ -49,7 +49,7 @@ export class GameScene extends Phaser.Scene {
     this.hud = new Hud(this)
     this.createPlayer()
     this.cursors = this.input.keyboard!.createCursorKeys()
-    this.undoKey = this.input.keyboard!.addKey('X')
+    this.undoKey = this.input.keyboard!.addKey('SPACE')
     this.input.keyboard!.on('keydown-LEFT', () => {
       if (isSelectHeld()) this.skipLevel(-1)
     })

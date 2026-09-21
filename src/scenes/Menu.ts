@@ -18,18 +18,16 @@ export class MenuScene extends Scene {
     this.add.sprite(width / 2, 88, 'title-gem').play('title-gem')
     const won = this.registry.get('won') === true
     this.add
-      .bitmapText(80, 120, 'wayfarer', won ? 'YOU WIN!' : 'PRESS START')
+      .bitmapText(80, 120, 'wayfarer', won ? 'YOU WIN!' : 'PRESS SPACE')
       .setTintFill(COLOURS[1])
       .setOrigin(0.5)
 
     const start = () => {
-      this.input.keyboard?.off('keydown-X', start)
-      this.input.keyboard?.off('keydown-ENTER', start)
+      this.input.keyboard?.off('keydown-SPACE', start)
       this.sound.play('game-start', { volume: 0.5 })
       this.scene.launch('Transition', { from: 'Menu', to: 'Game' })
     }
-    this.input.keyboard?.on('keydown-X', start)
-    this.input.keyboard?.on('keydown-ENTER', start)
+    this.input.keyboard?.on('keydown-SPACE', start)
   }
 
   update() {}

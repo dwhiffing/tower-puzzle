@@ -23,7 +23,7 @@ const DIRS: Record<Dir, [number, number]> = {
   up: [0, -1],
   down: [0, 1],
 }
-const UNDO = { key: 'x', code: 'KeyX', keyCode: 88 }
+const UNDO = { key: 'space', code: 'KeySpace', keyCode: 32 }
 const KEY_FOR: Record<
   InputName,
   { key: string; code: string; keyCode: number }

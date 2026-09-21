@@ -64,11 +64,6 @@ export class BootScene extends Scene {
       frameRate: 6,
       repeat: -1,
     })
-    // @ts-ignore
-    if (C.STARTING_LEVEL !== 1) {
-      this.scene.start('Game')
-    } else {
-      this.scene.launch('Transition', { from: 'Boot', to: 'Menu' })
-    }
+    this.scene.launch('Transition', { from: 'Boot', to: 'Menu' })
   }
 }

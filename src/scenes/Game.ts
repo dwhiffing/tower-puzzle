@@ -355,6 +355,7 @@ export class GameScene extends Phaser.Scene {
   nextLevel = () => {
     const newLevel = this.state.level + 1
     if (newLevel > C.LEVEL_COUNT) {
+      this.state.reset()
       this.registry.set('won', true)
       this.scene.launch('Transition', { from: 'Game', to: 'Menu' })
       return

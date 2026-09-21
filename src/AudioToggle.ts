@@ -3,7 +3,7 @@ export class AudioToggle {
 
   static startMusic(scene: Phaser.Scene) {
     if (scene.sound.get('music')) return
-    scene.sound.add('music', { loop: true, volume: 0.4 }).play()
+    scene.sound.add('music', { loop: true, volume: 0.3 }).play()
     this.applyState(scene)
   }
 
@@ -17,8 +17,11 @@ export class AudioToggle {
     const muted = this.audioState === 2
     const musicOff = this.audioState !== 0
     scene.sound.volume = muted ? 0 : 1
-    if (musicOff) scene.sound.get('music').pause()
-    else scene.sound.get('music').play()
+    const music = scene.sound.get('music')
+    if (!music) return
+    if (musicOff) music.pause()
+    else if (music.isPaused) music.resume()
+    else if (!music.isPlaying) music.play()
   }
 
   static loadState(scene: Phaser.Scene) {

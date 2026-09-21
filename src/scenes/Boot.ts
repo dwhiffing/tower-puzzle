@@ -8,6 +8,8 @@ export class BootScene extends Scene {
   }
 
   preload() {
+    this.createLoadingBar()
+
     this.load.bitmapFont('wayfarer', 'assets/font.png', 'assets/font.xml')
     this.load.bitmapFont(
       'pixel',
@@ -43,6 +45,20 @@ export class BootScene extends Scene {
     this.load.audio('use-shield', 'assets/sounds/use-shield.mp3')
     this.load.audio('win-level', 'assets/sounds/win-level.mp3')
     this.load.audio('music', `assets/sounds/music.mp3`)
+  }
+
+  createLoadingBar() {
+    const { width, height } = this.scale
+    const barHeight = 8
+    const bar = this.add
+      .rectangle(0, (height - barHeight) / 2, 0, barHeight, C.COLOURS[3])
+      .setOrigin(0, 0)
+
+    this.load.on('progress', (value: number) => {
+      bar.width = Math.ceil(width * value)
+    })
+
+    this.load.once('complete', () => bar.destroy())
   }
 
   create() {

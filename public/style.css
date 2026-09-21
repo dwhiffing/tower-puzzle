@@ -5,7 +5,6 @@ body {
   background-color: #000000;
 }
 
-/* the game is pixel art: never let the browser smooth it when upscaling */
 canvas {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
@@ -20,18 +19,11 @@ canvas {
   align-items: center;
 }
 
-/* desktop: hold the game at a crisp 6x rather than letting FIT stretch
-   it to the viewport */
 #game-container {
-  width: 960px;
-  height: 864px;
   max-width: 100vw;
   max-height: 100vh;
 }
 
-/* PICO-8-style mobile layout (body.touch is set by src/touch.ts): the
-   game parks at the top and the touch controls fill the space below */
-body.touch /* the game is pixel art: never let the browser smooth it when upscaling */
 canvas {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
@@ -44,21 +36,16 @@ canvas {
 }
 
 body.touch #game-container {
-  /* exact pixel size is set by setupTouchControls(), which picks the
-     largest whole-number multiple of 160x144 that fits — a fractional
-     scale would smear the pixel art */
   flex: none;
 }
 
 #touch-controls {
   flex: 1;
   position: relative;
-  /* the panel owns its touches: no scrolling, zooming, or text selection */
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
-  /* keep the controls clear of the iPhone home indicator */
   padding-bottom: env(safe-area-inset-bottom);
   max-width: 530px;
   max-height: 300px;

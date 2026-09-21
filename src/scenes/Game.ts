@@ -1,10 +1,8 @@
 import * as C from '../constants'
-import { RETALIATION_DELAY, play } from '../Sfx'
 import { flashSprite } from '../utils'
 import { step } from '../rules'
 import type { State } from '../rules'
 import { GameState } from '../GameState'
-import type { Snapshot } from '../GameState'
 import { Hud } from '../Hud'
 import { GameMap } from '../Map'
 
@@ -30,15 +28,12 @@ export class GameScene extends Phaser.Scene {
   isMoveHeld = false
   isAttacking = false
   isDead = false
-  /** Set by the debug level skip so arrival ignores the staircases. */
   playerFlashTimer?: Phaser.Time.TimerEvent
   cursors: Phaser.Types.Input.Keyboard.CursorKeys
   undoKey: Phaser.Input.Keyboard.Key
-  redoKey: Phaser.Input.Keyboard.Key
-  undoStack: Snapshot[] = []
-  redoStack: Snapshot[] = []
-  historyTimer = 0
-  isHistoryHeld = false
+  undoStack: State[] = []
+  undoTimer = 0
+  isUndoHeld = false
 
   constructor() {
     super('Game')
@@ -49,16 +44,12 @@ export class GameScene extends Phaser.Scene {
     const isNewRun = !lastLevel
     this.state = new GameState(this, isNewRun)
     this.map = new GameMap(this)
-    // values are collected off the ground, so every level starts empty
     this.state.set('abilityValues', [])
-    // each level is balanced on its own hp, so arriving never carries damage
-    this.state.set('hp', this.map.spawn?.hp ?? C.STARTING_HP)
+    this.state.set('hp', this.map.spawn?.hp ?? 1)
     this.hud = new Hud(this)
     this.createPlayer()
     this.cursors = this.input.keyboard!.createCursorKeys()
     this.undoKey = this.input.keyboard!.addKey('X')
-    this.redoKey = this.input.keyboard!.addKey('C')
-    // hold SELECT and tap left/right to step between levels
     this.input.keyboard!.on('keydown-LEFT', () => {
       if (isSelectHeld()) this.skipLevel(-1)
     })
@@ -67,7 +58,6 @@ export class GameScene extends Phaser.Scene {
     })
     this.moveTimer = 0
     this.undoStack = []
-    this.redoStack = []
   }
 
   update(_time: number, delta: number) {
@@ -100,35 +90,28 @@ export class GameScene extends Phaser.Scene {
   }
 
   createPlayer() {
-    const start = this.map.spawn ?? this.map.findTile(C.PLAYER_ID)
-    const spawnTile = this.map.findTile(C.PLAYER_ID)
-    if (spawnTile) this.map.removeTile(spawnTile.x, spawnTile.y)
-
+    const { x = 0, y = 0 } = this.map.spawn ?? {}
     this.player = this.add
       .sprite(0, 0, 'tilemap', C.PLAYER_ID)
       .setOrigin(0)
       .setDepth(10)
-      .setPosition((start?.x ?? 0) * C.TILE_SIZE, (start?.y ?? 0) * C.TILE_SIZE)
+      .setPosition(x * C.TILE_SIZE, y * C.TILE_SIZE)
   }
 
   updateHistory(delta: number) {
-    const undo = this.undoKey.isDown
-    const redo = this.redoKey.isDown
-
-    if (undo === redo) {
-      this.isHistoryHeld = false
-      this.historyTimer = 0
+    if (!this.undoKey.isDown) {
+      this.isUndoHeld = false
+      this.undoTimer = 0
       return false
     }
 
-    this.historyTimer -= delta
-    if (this.isHistoryHeld && this.historyTimer > 0) return true
+    this.undoTimer -= delta
+    if (this.isUndoHeld && this.undoTimer > 0) return true
 
-    this.historyTimer = this.isHistoryHeld ? 100 : 200
-    this.isHistoryHeld = true
+    this.undoTimer = this.isUndoHeld ? 100 : 200
+    this.isUndoHeld = true
 
-    if (undo) this.undo()
-    else this.redo()
+    this.undo()
     return true
   }
 
@@ -172,48 +155,35 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  pushHistory() {
-    this.undoStack.push(this.state.snapshot())
-    this.redoStack = []
-  }
-
   undo() {
-    const snapshot = this.undoStack.pop()
-    if (!snapshot) return play(this, 'invalid-move')
-    play(this, 'undo', 1)
-    this.redoStack.push(this.state.snapshot())
-    this.state.restore(snapshot)
-    this.revive()
-  }
-
-  revive() {
+    const prev = this.undoStack.pop()
+    if (!prev) return this.sound.play('invalid-move', { volume: 0.5 })
+    this.sound.play('undo', { volume: 1 })
+    this.state.set('hp', prev.hp)
+    this.state.set('heldItem', prev.heldItem)
+    this.state.set('abilityValues', prev.abilityValues)
+    this.player.setPosition(
+      prev.player.x * C.TILE_SIZE,
+      prev.player.y * C.TILE_SIZE,
+    )
+    this.map.restore(prev)
     this.isDead = false
     this.isAttacking = false
     this.player.setVisible(true)
-  }
-
-  redo() {
-    const snapshot = this.redoStack.pop()
-    if (!snapshot) return play(this, 'invalid-move')
-    play(this, 'undo', 1)
-    this.undoStack.push(this.state.snapshot())
-    this.state.restore(snapshot)
-    this.revive()
   }
 
   move(dx: number, dy: number) {
     const before = this.toRulesState()
     const result = step(before, { dx, dy })
     if (!result) {
-      play(this, 'invalid-move', 0.3)
+      this.sound.play('invalid-move', { volume: 0.3 })
       return
     }
 
-    this.pushHistory()
+    this.undoStack.push(before)
     this.applyEffects(result, before.heldItem)
   }
 
-  /** Mirrors the rules' new state onto the scene, animating as it goes. */
   applyEffects(result: ReturnType<typeof step> & {}, heldBefore?: number) {
     const { state, effects } = result
     const attack = effects.find((e) => e.type === 'attack')
@@ -243,7 +213,6 @@ export class GameScene extends Phaser.Scene {
 
     if (!attack) return
 
-    // Combat is the one case with timing: flash the monster, then resolve.
     const monster = this.map.getMonster(attack.x, attack.y)
     const hurt = effects.find((e) => e.type === 'hurt')
     const died = effects.some((e) => e.type === 'died')
@@ -257,9 +226,9 @@ export class GameScene extends Phaser.Scene {
 
     this.isAttacking = true
     if (hurt)
-      this.time.delayedCall(RETALIATION_DELAY, () => {
+      this.time.delayedCall(260, () => {
         const died = result.effects.some((t) => t.type === 'died')
-        play(this, died ? 'player-dead' : 'player-hit', died ? 0.3 : 0.4)
+        this.sound.play(died ? 'player-dead' : 'player-hit', { volume: 0.35 })
       })
     monster.flash(() => {
       if (attack.killed) {
@@ -283,7 +252,6 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
-  /** Repositions monster objects to match the rules state. */
   syncMonsters(state: State) {
     const byTile = new Map(
       [...this.map.monsters.values()].map((m) => [m, `${m.x},${m.y}`]),
@@ -291,7 +259,6 @@ export class GameScene extends Phaser.Scene {
     for (const want of state.monsters) {
       const key = `${want.x},${want.y}`
       if ([...byTile.values()].includes(key)) continue
-      // A monster the rules moved: find the one that is no longer where it was.
       const stale = [...this.map.monsters.values()].find(
         (m) =>
           !state.monsters.some((w) => w.x === m.x && w.y === m.y) &&
@@ -308,25 +275,28 @@ export class GameScene extends Phaser.Scene {
     const { effects } = result
     const has = (type: string) => effects.some((e) => e.type === type)
 
-    if (has('exit')) return play(this, 'win-level', 0.2)
+    if (has('exit')) return this.sound.play('win-level', { volume: 0.2 })
 
     const attack = effects.find((e) => e.type === 'attack')
     if (attack) {
-      play(this, attack.killed ? 'enemy-dead' : 'enemy-hit')
-      if (C.SHIELD_IDS.includes(heldBefore)) play(this, 'use-shield')
+      this.sound.play(attack.killed ? 'enemy-dead' : 'enemy-hit', {
+        volume: 0.5,
+      })
+      if (heldBefore === C.SHIELD_ID)
+        this.sound.play('use-shield', { volume: 0.5 })
       return
     }
 
-    if (has('door')) return play(this, 'use-key', 0.3)
-    if (has('dig')) return play(this, 'use-pickaxe')
-    if (has('swap')) return play(this, 'use-boots')
-    if (has('ring')) return play(this, 'use-ring')
-    if (has('potion')) return play(this, 'use-potion', 0.2)
-    if (has('pickup') || has('value')) return play(this, 'pickup-item')
-    return play(this, 'player-step')
+    if (has('door')) return this.sound.play('use-key', { volume: 0.3 })
+    if (has('dig')) return this.sound.play('use-pickaxe', { volume: 0.5 })
+    if (has('swap')) return this.sound.play('use-boots', { volume: 0.5 })
+    if (has('ring')) return this.sound.play('use-ring', { volume: 0.5 })
+    if (has('potion')) return this.sound.play('use-potion', { volume: 0.2 })
+    if (has('pickup') || has('value'))
+      return this.sound.play('pickup-item', { volume: 0.5 })
+    return this.sound.play('player-step', { volume: 0.5 })
   }
 
-  /** Writes the rules' tile grid back onto the tilemap layers. */
   syncTiles(state: State) {
     const { width } = this.map.tilemap
     this.map.layers.forEach((layer, i) => {
@@ -347,14 +317,12 @@ export class GameScene extends Phaser.Scene {
     this.player.setVisible(false)
   }
 
-  /** Debug only: jump a level without needing the gem or the stairs. */
   skipLevel = (delta: number) => {
     if (this.scene.isActive('Transition')) return
     const newLevel = this.state.level + delta
     if (newLevel < 1 || newLevel > C.LEVEL_COUNT) return
 
     this.state.set('heldItem', C.NULL_ITEM_ID)
-    // a non-null lastLevel keeps create() from resetting the run
     this.registry.set('lastLevel', this.state.level)
     this.registry.set('level', newLevel)
     this.scene.launch('Transition', {

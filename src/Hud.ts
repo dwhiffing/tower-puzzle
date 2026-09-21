@@ -1,5 +1,6 @@
 import * as C from './constants'
 import { GameScene } from './scenes/Game'
+import { tileForValue } from './utils'
 
 const x = 145
 const t = 16
@@ -15,11 +16,9 @@ export class Hud {
   constructor(scene: GameScene) {
     this.scene = scene
     this.borderGraphics = this.scene.add.graphics().setDepth(HUD_DEPTH)
-    // values are drawn straight from the tilemap: frames 16-23 are the
-    // values 2-9, and 24-31 the highlighted copies
     this.abilityValueSprites = [0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) =>
       this.scene.add
-        .sprite(x - 1, t * 2 + i * t, 'tilemap', C.VALUE_TILE_FIRST)
+        .sprite(x - 1, t * 2 + i * t, 'tilemap', 0)
         .setOrigin(0, 0)
         .setDepth(HUD_DEPTH)
         .setVisible(false),
@@ -44,7 +43,6 @@ export class Hud {
 
     const onChange = () => this.refresh()
     this.scene.registry.events.on('changedata', onChange)
-    // the registry outlives the scene, so drop the listener on restart
     this.scene.events.once('shutdown', () =>
       this.scene.registry.events.off('changedata', onChange),
     )
@@ -72,8 +70,7 @@ export class Hud {
         sprite.setVisible(false)
         return
       }
-      // values spend oldest-first, so the front one is what's next
-      sprite.setVisible(true).setFrame(C.tileForValue(value, i === 0))
+      sprite.setVisible(true).setFrame(tileForValue(value, i === 0))
     })
   }
 

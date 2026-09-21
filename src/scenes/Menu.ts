@@ -1,6 +1,6 @@
 import { Scene } from 'phaser'
 import { COLOURS } from '../constants'
-import { play } from '../Sfx'
+import { AudioToggle } from '../AudioToggle'
 
 export class MenuScene extends Scene {
   bgGraphics: Phaser.GameObjects.TileSprite
@@ -9,6 +9,9 @@ export class MenuScene extends Scene {
   }
 
   create() {
+    AudioToggle.startMusic(this)
+    AudioToggle.loadState(this)
+
     const { width, height } = this.cameras.main
     this.add.rectangle(0, 0, width, height, COLOURS[0]).setOrigin(0)
     this.add.image(width / 2, 40, 'title')
@@ -22,7 +25,7 @@ export class MenuScene extends Scene {
     const start = () => {
       this.input.keyboard?.off('keydown-X', start)
       this.input.keyboard?.off('keydown-ENTER', start)
-      play(this, 'game-start')
+      this.sound.play('game-start', { volume: 0.5 })
       this.scene.launch('Transition', { from: 'Menu', to: 'Game' })
     }
     this.input.keyboard?.on('keydown-X', start)

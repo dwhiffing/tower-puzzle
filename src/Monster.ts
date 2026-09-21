@@ -43,9 +43,9 @@ export class Monster {
         key,
         frames: [
           { key: 'tilemap', frame: this.tileIndex },
-          { key: 'tilemap', frame: this.tileIndex + C.ENEMY_IDLE_OFFSET },
+          { key: 'tilemap', frame: this.tileIndex + 8 },
         ],
-        frameRate: C.ENEMY_IDLE_FRAMERATE,
+        frameRate: 2,
         repeat: -1,
       })
     }

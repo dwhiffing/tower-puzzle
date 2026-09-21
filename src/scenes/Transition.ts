@@ -26,8 +26,6 @@ export class TransitionScene extends Scene {
   create() {
     const { width: w, height: h } = this.cameras.main
 
-    /* One canvas the size of the screen, repainted each frame. Created once
-       and reused, since this scene is stopped and restarted constantly. */
     this.texture = this.textures.exists(TEXTURE)
       ? (this.textures.get(TEXTURE) as Phaser.Textures.CanvasTexture)
       : this.textures.createCanvas(TEXTURE, w, h)!
@@ -45,7 +43,6 @@ export class TransitionScene extends Scene {
       return
     }
 
-    // cover the screen, swap scenes behind it, then uncover from the far side
     this.sweep(0, 1, duration, false, () => {
       if (restart) {
         this.scene.get(this.config.to).scene.restart(data)
@@ -57,7 +54,6 @@ export class TransitionScene extends Scene {
     })
   }
 
-  /** Tweens `progress` and repaints the wipe on every frame. */
   sweep(
     from: number,
     to: number,

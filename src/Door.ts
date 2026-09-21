@@ -1,7 +1,7 @@
 import * as C from './constants'
 import { GameScene } from './scenes/Game'
 
-export type DoorOperator = '>' | '<' | '='
+type DoorOperator = '>' | '<' | '='
 
 export class Door {
   scene: GameScene

@@ -1,29 +1,6 @@
 import * as C from './constants'
 import { GameScene } from './scenes/Game'
 
-interface TileEdit {
-  layer: number
-  x: number
-  y: number
-  index: number
-}
-
-export interface Snapshot {
-  hp: number
-  heldItem: number
-  abilityValues: number[]
-  tileEdits: Record<number, TileEdit[]>
-  player: { x: number; y: number }
-  monsters: {
-    x: number
-    y: number
-    tileIndex: number
-    health: number
-    damage: number
-  }[]
-  doors: string[]
-}
-
 export class GameState {
   scene: GameScene
   constructor(scene: GameScene, reset = false) {
@@ -44,7 +21,7 @@ export class GameState {
   }
 
   get hp(): number {
-    return this.registry.get('hp') ?? C.STARTING_HP
+    return this.registry.get('hp') ?? 1
   }
 
   get heldItem(): number {
@@ -55,45 +32,11 @@ export class GameState {
     return this.registry.get('level') ?? 1
   }
 
-  get tileEdits(): Record<number, TileEdit[]> {
-    return this.registry.get('tileEdits') ?? {}
-  }
-
-  snapshot(): Snapshot {
-    const { x = 0, y = 0 } = this.scene.player ?? {}
-    return {
-      hp: this.hp,
-      heldItem: this.heldItem,
-      abilityValues: [...this.abilityValues],
-      tileEdits: structuredClone(this.tileEdits),
-      player: { x, y },
-      monsters: [...this.scene.map.monsters.values()].map((m) => ({
-        x: m.x,
-        y: m.y,
-        tileIndex: m.tileIndex,
-        health: m.health,
-        damage: m.damage,
-      })),
-      doors: [...this.scene.map.doors.keys()],
-    }
-  }
-
-  restore(snapshot: Snapshot) {
-    this.registry.set({
-      hp: snapshot.hp,
-      heldItem: snapshot.heldItem,
-      abilityValues: [...snapshot.abilityValues],
-      tileEdits: structuredClone(snapshot.tileEdits),
-    })
-    this.scene.player?.setPosition(snapshot.player.x, snapshot.player.y)
-    this.scene.map.restore(snapshot)
-  }
-
   get(key: string) {
     return this.registry.get(key)
   }
 
-  set(key: string, value: number | number[] | Record<number, TileEdit[]>) {
+  set(key: string, value: number | number[]) {
     return this.registry.set(key, value)
   }
 
@@ -104,8 +47,7 @@ export class GameState {
   reset() {
     this.registry.set({
       heldItem: C.NULL_ITEM_ID,
-      hp: C.STARTING_HP,
-      tileEdits: {},
+      hp: 1,
       abilityValues: [],
       level: C.STARTING_LEVEL,
       lastLevel: null,

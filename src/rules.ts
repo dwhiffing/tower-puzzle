@@ -1,31 +1,9 @@
 import * as C from './constants'
-
-export type Dir = { dx: number; dy: number }
-
-export interface Tile {
-  layer: number
-  index: number
-}
-
-export interface MonsterState {
-  x: number
-  y: number
-  tileIndex: number
-  health: number
-  damage: number
-}
-
-export interface DoorState {
-  x: number
-  y: number
-  operator: '>' | '<' | '='
-  value: number
-}
+import { valueForTile } from './utils'
 
 export interface State {
   width: number
   height: number
-  /** Tile index per layer, -1 for empty. Indexed [layer][y * width + x]. */
   tiles: number[][]
   player: { x: number; y: number }
   hp: number
@@ -37,7 +15,24 @@ export interface State {
   won: boolean
 }
 
-export type Effect =
+type Dir = { dx: number; dy: number }
+
+interface MonsterState {
+  x: number
+  y: number
+  tileIndex: number
+  health: number
+  damage: number
+}
+
+interface DoorState {
+  x: number
+  y: number
+  operator: '>' | '<' | '='
+  value: number
+}
+
+type Effect =
   | { type: 'move'; x: number; y: number }
   | { type: 'attack'; x: number; y: number; damage: number; killed: boolean }
   | { type: 'hurt'; amount: number }
@@ -51,7 +46,7 @@ export type Effect =
   | { type: 'exit'; x: number; y: number }
   | { type: 'died' }
 
-export interface StepResult {
+interface StepResult {
   state: State
   effects: Effect[]
 }
@@ -79,15 +74,9 @@ const clearTile = (state: State, x: number, y: number) => {
   for (const layer of state.tiles) layer[y * state.width + x] = -1
 }
 
-/**
- * The value the next ability will spend. Values are collected off the
- * ground and consumed oldest-first; with none in hand an action counts
- * as DEFAULT_VALUE.
- */
-export const liveValue = (state: State) =>
-  state.abilityValues[0] ?? C.DEFAULT_VALUE
+const liveValue = (state: State) => state.abilityValues[0] ?? 1
 
-export const clone = (state: State): State => ({
+const clone = (state: State): State => ({
   ...state,
   tiles: state.tiles.map((layer) => [...layer]),
   player: { ...state.player },
@@ -96,7 +85,6 @@ export const clone = (state: State): State => ({
   doors: state.doors.map((d) => ({ ...d })),
 })
 
-/** Spends the front value, if the player has one. */
 const advance = (state: State) => {
   if (state.abilityValues.length === 0) return
   state.abilityValues.shift()
@@ -109,7 +97,6 @@ const doorAccepts = (door: DoorState, value: number) =>
       ? value < door.value
       : value === door.value
 
-/** Drops the held item on the player's current tile, then takes `item`. */
 const swapHeldItem = (state: State, item: number) => {
   const dropped = state.heldItem
   state.heldItem = item
@@ -119,10 +106,6 @@ const swapHeldItem = (state: State, item: number) => {
   return dropped
 }
 
-/**
- * Applies one move. Returns null if the move is rejected, so callers can
- * distinguish "nothing happened" from "the state advanced".
- */
 export function step(input: State, dir: Dir): StepResult | null {
   if (input.dead || input.won) return null
 
@@ -134,17 +117,16 @@ export function step(input: State, dir: Dir): StepResult | null {
   const effects: Effect[] = []
   const state = clone(input)
 
-  if (C.WALL_IDS.includes(index)) {
-    if (!C.PICKAXE_IDS.includes(state.heldItem)) return null
+  if (index === C.WALL_ID) {
+    if (state.heldItem !== C.PICKAXE_ID) return null
     state.heldItem = C.NULL_ITEM_ID
     clearTile(state, x, y)
     effects.push({ type: 'dig', x, y })
     return { state, effects }
   }
 
-  if (C.STAIR_IDS.includes(index)) {
-    // without the gem the stairs are just floor, not a wall
-    if (!C.GEM_IDS.includes(state.heldItem)) {
+  if (index === C.STAIR_ID) {
+    if (state.heldItem !== C.GEM_ID) {
       state.player = { x, y }
       effects.push({ type: 'move', x, y })
       return { state, effects }
@@ -160,7 +142,7 @@ export function step(input: State, dir: Dir): StepResult | null {
     const monster = state.monsters.find((m) => m.x === x && m.y === y)
     if (!monster) return null
 
-    if (C.BOOTS_IDS.includes(state.heldItem)) {
+    if (state.heldItem === C.BOOTS_ID) {
       state.heldItem = C.NULL_ITEM_ID
       monster.x = state.player.x
       monster.y = state.player.y
@@ -171,9 +153,9 @@ export function step(input: State, dir: Dir): StepResult | null {
       return { state, effects }
     }
 
-    const hasSword = C.SWORD_IDS.includes(state.heldItem)
-    const hasShield = C.SHIELD_IDS.includes(state.heldItem)
-    const damage = liveValue(state) * (hasSword ? C.SWORD_DAMAGE_MULTIPLIER : 1)
+    const hasSword = state.heldItem === C.SWORD_ID
+    const hasShield = state.heldItem === C.SHIELD_ID
+    const damage = liveValue(state) * (hasSword ? 2 : 1)
 
     monster.health = Math.max(0, monster.health - damage)
     const killed = monster.health <= 0
@@ -197,8 +179,8 @@ export function step(input: State, dir: Dir): StepResult | null {
     return { state, effects }
   }
 
-  if (C.DOOR_IDS.includes(index)) {
-    if (!C.KEY_IDS.includes(state.heldItem)) return null
+  if (index === C.DOOR_ID) {
+    if (state.heldItem !== C.KEY_ID) return null
     const door = state.doors.find((d) => d.x === x && d.y === y)
     if (door && !doorAccepts(door, liveValue(state))) return null
 
@@ -206,18 +188,17 @@ export function step(input: State, dir: Dir): StepResult | null {
     state.doors = state.doors.filter((d) => d !== door)
     advance(state)
     effects.push({ type: 'door', x, y })
-  } else if (C.RING_IDS.includes(index)) {
+  } else if (index === C.RING_ID) {
     state.abilityValues.reverse()
     swapHeldItem(state, C.NULL_ITEM_ID)
     effects.push({ type: 'ring' })
-  } else if (C.valueForTile(index) !== null) {
-    // values are collected, not held: they queue up and spend one at a time
-    state.abilityValues.push(C.valueForTile(index)!)
-    effects.push({ type: 'value', value: C.valueForTile(index)! })
+  } else if (valueForTile(index) !== null) {
+    state.abilityValues.push(valueForTile(index)!)
+    effects.push({ type: 'value', value: valueForTile(index)! })
   } else if (C.HELD_ITEM_IDS.includes(index)) {
     const dropped = swapHeldItem(state, index)
     effects.push({ type: 'pickup', item: index, dropped })
-  } else if (C.POTION_IDS.includes(index)) {
+  } else if (index === C.POTION_ID) {
     const amount = liveValue(state)
     state.hp += amount
     advance(state)

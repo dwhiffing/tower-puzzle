@@ -1,8 +1,7 @@
 import * as C from './constants'
-import { parseMonsterName, parseSpawnName } from './level'
+import type { State } from './rules'
 import { Door } from './Door'
 import { GameScene } from './scenes/Game'
-import type { Snapshot } from './GameState'
 import { Monster } from './Monster'
 
 export class GameMap {
@@ -11,107 +10,66 @@ export class GameMap {
   layers: Phaser.Tilemaps.TilemapLayer[] = []
   monsters = new Map<string, Monster>()
   doors = new Map<string, Door>()
-  spawn?: { x: number; y: number; abilityValues: number[]; hp: number }
-  baseTiles: number[][] = []
-  /** Per-monster stat overrides from object names, by "x,y". */
+  spawn?: { x: number; y: number; hp: number }
   monsterStats = new Map<string, [number, number]>()
 
   constructor(scene: GameScene) {
     this.scene = scene
     this.tilemap = scene.make.tilemap({ key: `level${scene.state.level}` })
     const tileset = this.tilemap.addTilesetImage('tilemap', 'tilemap')!
-    const edits = scene.state.tileEdits[scene.state.level] ?? []
 
     this.layers = this.tilemap.layers.map(
       (layer) => this.tilemap.createLayer(layer.name, tileset, 0, 0)!,
     )
 
-    /* Levels store only walls as tiles; stairs, items, keys and enemies are
-       objects. The scene still works on two tile layers, so make the second
-       one here and paint the objects onto it. */
     if (this.layers.length < 2) {
       const blank = this.tilemap.createBlankLayer('objects', tileset, 0, 0)!
       this.layers.push(blank)
     }
     this.paintObjects()
 
-    this.baseTiles = this.layers.map((layer) => {
-      const indices: number[] = []
-      layer.forEachTile((tile) => {
-        indices[tile.y * this.tilemap.width + tile.x] = tile.index
-      })
-      return indices
-    })
-
-    for (const e of edits) {
-      this.layers[e.layer]?.putTileAt(e.index, e.x, e.y)
-    }
-
     this.spawnMonsters()
     this.spawnDoors()
-    this.findSpawn()
   }
 
-  restore(snapshot: Snapshot) {
-    const { width, height } = this.tilemap
-    this.layers.forEach((layer, i) => {
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-          layer.putTileAt(this.baseTiles[i][y * width + x] ?? -1, x, y)
-          // putTileAt reuses the Tile object, so clear any hidden flag left
-          // by a monster that used to stand here; the loop below re-hides
-          // the squares that still have one.
-          layer.getTileAt(x, y)?.setVisible(true)
-        }
-      }
-    })
-    for (const e of snapshot.tileEdits[this.scene.state.level] ?? []) {
-      this.layers[e.layer]?.putTileAt(e.index, e.x, e.y)
-      this.layers[e.layer]?.getTileAt(e.x, e.y)?.setVisible(true)
-    }
+  restore(state: State) {
+    this.monsterStats = new Map(
+      state.monsters.map((m) => [`${m.x},${m.y}`, [m.health, m.damage]]),
+    )
+    this.scene.syncTiles(state)
 
-    // Reuse monsters that are still present so their idle animation keeps
-    // playing; only the difference is created or destroyed.
-    const wanted = new Map(snapshot.monsters.map((m) => [`${m.x},${m.y}`, m]))
-
+    const wanted = new Map(state.monsters.map((m) => [`${m.x},${m.y}`, m]))
     for (const [key, monster] of [...this.monsters]) {
-      const m = wanted.get(key)
-      if (m && m.tileIndex === monster.tileIndex) continue
+      if (wanted.get(key)?.tileIndex === monster.tileIndex) continue
       monster.destroy()
       this.monsters.delete(key)
     }
-
     for (const [key, m] of wanted) {
       const existing = this.monsters.get(key)
       if (existing) existing.setStats(m.health, m.damage)
-      else {
-        const monster = new Monster(
-          this.scene,
-          m.x,
-          m.y,
-          m.tileIndex,
-          m.health,
-          m.damage,
+      else
+        this.monsters.set(
+          key,
+          new Monster(this.scene, m.x, m.y, m.tileIndex, m.health, m.damage),
         )
-        this.monsters.set(key, monster)
-      }
       this.getTileAt(m.x, m.y)?.setVisible(false)
     }
 
+    const live = new Set(state.doors.map((d) => `${d.x},${d.y}`))
     for (const def of this.doorDefs()) {
       const key = `${def.x},${def.y}`
-      const shouldExist = snapshot.doors.includes(key)
-
-      if (!shouldExist) {
+      if (!live.has(key)) {
         this.removeDoor(def.x, def.y)
         for (const layer of this.layers) layer.putTileAt(-1, def.x, def.y)
         continue
       }
-
       this.layers[0].putTileAt(def.gid, def.x, def.y)
-      if (this.doors.has(key)) continue
-      const door = new Door(this.scene, def.x, def.y, def.operator, def.value)
-      this.doors.set(key, door)
+      if (!this.doors.has(key)) {
+        this.doors.set(
+          key,
+          new Door(this.scene, def.x, def.y, def.operator, def.value),
+        )
+      }
     }
   }
 
@@ -123,23 +81,26 @@ export class GameMap {
     return null
   }
 
-  /** Draws every non-door, non-spawn object onto the tile layers. */
   paintObjects() {
     for (const layer of this.tilemap.objects) {
       for (const object of layer.objects) {
         if (object.gid === undefined) continue
         const index = object.gid - 1
-        if (index === C.PLAYER_ID) continue
-        if (Door.parse(object.name ?? '')) continue
         const { x, y } = this.objectTile(object)
-        const defaults = C.ENEMY_STATS[index]
-        if (defaults) {
-          this.monsterStats.set(
-            `${x},${y}`,
-            parseMonsterName(object.name ?? '', defaults),
-          )
+        if (index === C.PLAYER_ID) {
+          this.spawn = { x, y, hp: Number(object.name) }
+          continue
         }
-        const terrain = C.STAIR_IDS.includes(index)
+        if (Door.parse(object.name ?? '')) continue
+        const match = /^(\d+)?\s*(?:\/\s*(\d+))?$/.exec(
+          (object.name ?? '').trim(),
+        )
+
+        this.monsterStats.set(`${x},${y}`, [
+          Number(match![1]),
+          Number(match![2]),
+        ])
+        const terrain = index === C.STAIR_ID
         this.layers[terrain ? 0 : 1].putTileAt(object.gid, x, y)
       }
     }
@@ -180,30 +141,11 @@ export class GameMap {
     }
   }
 
-  // Tiled anchors tile objects at their bottom-left corner.
   objectTile(object: Phaser.Types.Tilemaps.TiledObject) {
     return {
       x: Math.floor((object.x ?? 0) / C.TILE_SIZE),
       y: Math.floor(((object.y ?? 0) - C.TILE_SIZE) / C.TILE_SIZE),
     }
-  }
-
-  findSpawn() {
-    for (const layer of this.tilemap.objects) {
-      for (const object of layer.objects) {
-        if (object.gid === undefined) continue
-        if (object.gid - 1 !== C.PLAYER_ID) continue
-
-        const { abilityValues, hp } = parseSpawnName(object.name ?? '')
-
-        this.spawn = { ...this.objectTile(object), abilityValues, hp }
-        return this.spawn
-      }
-    }
-  }
-
-  getDoor(x: number, y: number) {
-    return this.doors.get(`${x},${y}`) ?? null
   }
 
   removeDoor(x: number, y: number) {
@@ -231,15 +173,6 @@ export class GameMap {
     this.monsters.delete(key)
   }
 
-  getTile(x: number, y: number, indices: number[] = []) {
-    for (const layer of this.layers) {
-      const tile = layer.getTileAt(x, y)
-      if (tile && indices.length === 0) return tile
-      if (tile && indices.includes(tile.index)) return tile
-    }
-    return null
-  }
-
   setTile(
     layer: Phaser.Tilemaps.TilemapLayer,
     index: number,
@@ -251,37 +184,11 @@ export class GameMap {
 
     this.removeMonster(x, y)
     const monster = this.addMonster(x, y, index - 1)
-    /* A monster's own tile is hidden so its sprite can stand in for it.
-       putTileAt reuses the Tile object, so that hidden flag would otherwise
-       outlive the monster and swallow anything later placed here -- an item
-       dropped on the square would be there but never drawn. */
     layer.getTileAt(x, y)?.setVisible(!monster)
-
-    const edits = (this.scene.state.tileEdits[this.scene.state.level] ??= [])
-    const existing = edits.find(
-      (e) => e.x === x && e.y === y && e.layer === layer.layerIndex,
-    )
-    if (existing) existing.index = index
-    else edits.push({ layer: layer.layerIndex, x, y, index })
   }
 
   removeTile(x: number, y: number) {
     this.removeDoor(x, y)
     for (const layer of this.layers) this.setTile(layer, -1, x, y)
-  }
-
-  // Phaser reports a tile's gid, which is one above our tile index.
-  findTile(indices?: number[] | number | null) {
-    const match = (t: Phaser.Tilemaps.Tile) =>
-      t.index !== -1 &&
-      (Array.isArray(indices)
-        ? indices.includes(t.index - 1)
-        : t.index - 1 === indices)
-
-    for (const layer of this.layers) {
-      const tile = layer.findTile(match)
-      if (tile) return tile
-    }
-    return null
   }
 }

@@ -15,9 +15,9 @@ export interface State {
   won: boolean
 }
 
-type Dir = { dx: number; dy: number }
+export type Dir = { dx: number; dy: number }
 
-interface MonsterState {
+export interface MonsterState {
   x: number
   y: number
   tileIndex: number
@@ -25,7 +25,7 @@ interface MonsterState {
   damage: number
 }
 
-interface DoorState {
+export interface DoorState {
   x: number
   y: number
   operator: '>' | '<' | '='
@@ -46,7 +46,7 @@ type Effect =
   | { type: 'exit'; x: number; y: number }
   | { type: 'died' }
 
-interface StepResult {
+export interface StepResult {
   state: State
   effects: Effect[]
 }
@@ -76,7 +76,7 @@ const clearTile = (state: State, x: number, y: number) => {
 
 const liveValue = (state: State) => state.abilityValues[0] ?? 1
 
-const clone = (state: State): State => ({
+export const clone = (state: State): State => ({
   ...state,
   tiles: state.tiles.map((layer) => [...layer]),
   player: { ...state.player },
